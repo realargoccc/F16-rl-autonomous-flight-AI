@@ -1,0 +1,20 @@
+# Python environments (this project has several)
+.venv/
+with/
+new/
+remake/
+Python/
+\#/
+
+# caches
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# TensorBoard logs (regenerable)
+tb_logs/
+
+# Upstream JSBSim data — its own ~98MB git repo
+jsbsim-data/

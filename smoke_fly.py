@@ -1,0 +1,40 @@
+import time
+from flight_env import F16Env
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3 import PPO
+
+model_path = "ppo_f16_eleva_v1.2.0.zip"
+vecnorm_path = "vecnorm_eleva_v1.2.0.pkl"
+fg_directive = "jsbsim-data/data_output/flightgear.xml" #sends net_fdm to localhost:5550 (receiver in flightgear settings)
+
+env = DummyVecEnv([lambda: F16Env()])
+env = VecNormalize(model_path, env)
+env.norm_reward = False                 #DO NOT vecnorm reward
+env.training = False                    #
+model = PPO.load(model_path, env=env)
+
+raw_env = env.venv.envs[0]  #Only vecnorm for the low variance train, still want original data for real time displaying 
+fdm = raw_env.fdm           #getting the O.G. raw data 
+
+#turn on  flightgear udp output, if this errors on the path, try the 
+#root-relative form instead: fdm.set_output_directive("data_output/flightgear.xml")
+fdm.set_output_directive(fg_directive) #pass the raw data to flightgear
+fdm.enable_output()                    #ac
+
+#Sleep every update otherwise the plane will just teleport to the destination 
+dt = fdm.get_delta_t()      #0.00833 s -> 120 Hz sim rate: dt = delta t, get_delta_t tells you it reports to whatever hz configured (this case: 120)
+
+obs = env.reset()       #set the scenes, ready for loop
+print(f"current frame: {1/dt:.0f} Hz, switch to flightgear to watch flight live")
+
+try:
+    while True:   
+        action, _ = model.predict(obs, deterministic=True)  #Decide action
+        obs, rewards, done, infos = env.step(action)        #Apply action
+
+        loop_start = time.perf_counter()    #count the initial time
+        sleep_t = dt - (time.perf_counter() - loop_start)   #remaining sim time in comparison to real life time
+        if sleep_t > 0:                                     #pause the remaining sim time to match real life time
+            time.sleep(sleep_t)
+except KeyboardInterrupt:
+    print("\nFlight stopped due to keyboard interruption")
