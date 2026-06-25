@@ -19,7 +19,9 @@ class FlightFrame:
     # Attitude
     pitch_deg: float = 0.0   # Nose up/down, radians
     bank_rad: float = 0.0   # Roll left/right, radians
-    heading_rad: float = 0.0 # Compass heading, radians
+    heading_deg: float = 0.0 # Compass heading, radians
+    targ_heading: float = 0.0 #target heading in degrees
+    heading_error: float = 0.0 # diff of targ heading and curr heading
 
     # Velocity (world-frame components)
     vx_ms: float = 0.0
@@ -55,13 +57,14 @@ class FlightFrame:
     done: bool = False
     throttle: float = 0.0
     elevator: float = 0.0
+    aileron: float = 0.0
     # float ground_speed = std::sqrt(vx_ms * vx_ms + vz_ms * vz_ms);  #ask before implement it
 
 def parse_csv_line(line: str) -> FlightFrame | None:
     field_store = line.split(",") # parsed each line
     frame = FlightFrame()         # frame as a side split for FlightFrame
     #edge case
-    if len(field_store) != 29:
+    if len(field_store) != 30:
         print("cannot parse this, something is wrong")
         return None
 
@@ -95,6 +98,7 @@ def parse_csv_line(line: str) -> FlightFrame | None:
         frame.done = bool(field_store[26])
         frame.throttle = float(field_store[27])
         frame.elevator = float(field_store[28])
+        frame.aileron = float(field_store[29])
     except ValueError: 
         print(f"'{line}' includes a non ideal number")
         return None

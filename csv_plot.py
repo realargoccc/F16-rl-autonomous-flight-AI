@@ -5,7 +5,6 @@ csv_path = "eval_best.csv"
 log_dir = "./tb_logs/eval_csv"
 df = pd.read_csv(csv_path)  #df = dataframe
 
-
 df["ias_knots"] = df["ias_ms"] * 1.944
 
 # use steps as x axis, if steps column doens't exist, use the numbers

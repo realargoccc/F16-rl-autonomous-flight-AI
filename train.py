@@ -3,38 +3,42 @@ import os
 from flight_env import F16Env
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.env_util import make_vec_env
 
-#altitude hold train:
-model_load = "ppo_f16_eleva_v1.1.9.zip"
-model_path = "ppo_f16_eleva_v1.2.0.zip"
-vecnorm_load = "vecnorm_eleva_v1.1.9.pkl"
-vecnorm_path = "vecnorm_eleva_v1.2.0.pkl"
+model_load = "ppo_f16_eleva_v1.8.6.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+model_path = "ppo_f16_eleva_v1.9.0.zip" 
+vecnorm_load = "vecnorm_eleva_v1.8.6.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+vecnorm_path = "vecnorm_eleva_v1.9.0.pkl"
 
 #sanity check 
 #env = F16Env()
-check_env(F16Env())
-env = DummyVecEnv([lambda: Monitor(F16Env())])   #whenever asked, create an F16 environment 
-'''
-env = VecNormalize(
-    env, 
-    norm_obs=True,          #normalize observations
-    norm_reward=False,      #DO NOT normalize reward since they are specifically assigned
-    clip_obs=10.0           #cap the upper and lower limit between -10 - 10
-)
-'''
-env = VecNormalize.load(vecnorm_load, env)
-env.training = True
-env.norm_reward = False
+if __name__ == "__main__":
 
-#tensorboard --logdir=./tb_logs/
-model = PPO.load(model_load, env=env, verbose = 1, tensorboard_log="./tb_logs/")
-#model = PPO("MlpPolicy", env, verbose = 1, gamma = 0.99, ent_coef = 0.01, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
+    check_env(F16Env())
+    env = SubprocVecEnv([lambda: Monitor(F16Env()) for _ in range(8)])   #auto wrap 
+    
+    env = VecNormalize(         #COMMEWNT OUT WHEN TRAIN CONTINUOUS, UNCOMMENT WHEN TRAIN FRESH
+        env, 
+        norm_obs=True,          #normalize observations
+        norm_reward=False,      #DO NOT normalize reward since they are specifically assigned
+        clip_obs=10.0           #cap the upper and lower limit between -10 - 10
+    )
+    
+    #env = VecNormalize.load(vecnorm_load, env)  #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+    #env.training = True                         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+    #env.norm_reward = False                     #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
 
-model.learn(total_timesteps=200_000, reset_num_timesteps=False, tb_log_name="v1.2.0") #reset_num_timesteps=False
-model.save(model_path)
-env.save(vecnorm_path)
+    #tensorboard --logdir=./tb_logs/
+    #model = PPO.load(model_load, env=env, verbose = 1, tensorboard_log="./tb_logs/")
+    model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.99, ent_coef = 0.01, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
+
+    model.learn(total_timesteps= 2_000_000, reset_num_timesteps=False, tb_log_name="v1.8.3") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
+    model.save(model_path)
+    env.save(vecnorm_path)
+
+
 #Building environment: F16Env -> DummyVecEnv -> VecNormalize
 #env = DummyVecEnv([lambda: F16Env()])
 
@@ -45,18 +49,5 @@ env.save(vecnorm_path)
     #env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)    
 
 #pull up the existed ppo path, if doesn't exist, create a new one 
-'''
-if os.path.exists(model_path):     
-    model = PPO.load(model_path, env=env, verbose = 1)
-else:
-    model = PPO("MlpPolicy", env, verbose = 1, ent_coef=0.01)
-'''
 
-
-#env.save(vecnorm_path)
-
-#focus on ep_rew_mean value, good if its increasing 
-#ep_len_mean will be great if it maintain the same as we set it to be (steps)
-
-#run command: python train.py
 #interpretor select command: /Users/y/Desktop/jsbsim-rl/.venv/bin/python
