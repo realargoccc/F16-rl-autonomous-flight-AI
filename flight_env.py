@@ -87,10 +87,9 @@ class F16Env(gym.Env):
         curr_alt_ft = self.fdm['position/h-sl-ft']
         target_alt_ft = self.target_alt_ft
         speed_knots = self.fdm['velocities/vc-fps'] * 0.592484    #speed in knots
+        curr_throttle = self.fdm['fcs/throttle-cmd-norm']
         #Turning Policy Units
         curr_heading = self.fdm['attitude/psi-rad'] 
-        curr_g_load = self.fdm['accelerations/Nz']
-        min_g_load = 0.9
         curr_bank = self.fdm['attitude/phi-deg'] 
 
         #Min radius turn units:
@@ -108,9 +107,11 @@ class F16Env(gym.Env):
         #air speed policy  
         if speed_knots < 350:
             reward -= 0.05 * abs(speed_knots - 350)
-        elif speed_knots > 400:
-            reward -= 0.05 * (speed_knots - 400)
+        #elif speed_knots > 400:
+        #    reward -= 0.05 * (speed_knots - 400)
 
+        #throttle policy (max turn specific)
+        reward -= 0.1 * abs(curr_throttle - 1.0)
         #Optimized reward unit
         alt_diff_ft = curr_alt_ft - target_alt_ft
 
