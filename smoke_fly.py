@@ -39,3 +39,13 @@ try:
             time.sleep(sleep_t)
 except KeyboardInterrupt:
     print("\nFlight stopped")
+
+'''
+add to the flightgear settings args to ensure cockpit instruments are on
+--timeofday=noon
+--prop:/controls/electric/battery-switch=true
+--prop:/controls/electric/external-power=true
+--prop:/controls/engines/engine[0]/generator=true
+--prop:/controls/electric/avionics-switch=true
+-prop:/sim/model/autostart=true
+'''

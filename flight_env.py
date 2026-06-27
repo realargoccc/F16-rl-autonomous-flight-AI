@@ -167,4 +167,5 @@ if __name__ == "__main__":
     print(f"Wrapper validation completed, reward:{reward}")
 #run command: python flight_env.py
 #interpretor select command: /Users/y/Desktop/jsbsim-rl/.venv/bin/pythons
-
+#commit and push command: git add -A, git commit -m "message", git push
+#pull from pc: git fetch origin, git reset --hard origin/main
