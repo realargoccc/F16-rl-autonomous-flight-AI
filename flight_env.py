@@ -38,7 +38,15 @@ class F16Env(gym.Env):
         #self.fdm['simulation/do_simple_trim'] = 1  #one time solution before agent take over
         self.curr_step = 0
         self.prev_elev = 0.0
-        self.prev_aile = 0.0 
+        self.prev_aile = 0.0
+
+        #bandit stats
+        self.lat_agent = self.fdm['position/lat-geod-deg']
+        self.lon_agent = self.fdm['position/long-gc-deg'] 
+        self.bandit_vel = np.array([300.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
+                                    #north,east,up(vs)
+        self.bandit_pos = np.array([5556.0, 0.0, 9144.0]) #due north, at 30000ft
+                                    #north,east,up(alt)
         
         self.prev_heading = self.fdm['attitude/psi-rad']
         self.turned = 0.0   #accumulator
@@ -66,6 +74,18 @@ class F16Env(gym.Env):
             ], dtype = np.float32
         )
     
+    def agent_pos(self):
+        lat = self.fdm['position/lat-geod-deg']
+        lon = self.fdm['position/long-gc-deg']
+        alt = self.fdm['position/h-sl-meters']
+
+        #three components of the velocity
+        north = (lat - self.lat_agent) * 111320.0 #deg lat -> meters
+        east = (lon - self.lon_agent) * 111320.0 * np.cos(np.radians(self.lat_agent))
+        up = alt
+
+        return np.array([north, east, up])
+    
     def step(self, action):
         self.fdm['fcs/throttle-cmd-norm'] = float ((action[0] + 1.0) / 2.0)   #assign value back to the self.action_space
         self.fdm['fcs/elevator-cmd-norm'] = float (action[1])
@@ -75,6 +95,9 @@ class F16Env(gym.Env):
         #run 
         for _ in range(self.sim_steps_per_action):
             self.fdm.run()
+        dt = self.fdm.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
+        self.bandit_pos += self.bandit_vel * dt
+
         #get obs
         obs = self._get_obs()
 
