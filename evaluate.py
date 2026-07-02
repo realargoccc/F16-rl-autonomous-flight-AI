@@ -36,11 +36,19 @@ def get_episode(model, vecnorm, raw):
     rows = []                   #create storage for later transition to CSV content
     step = 0
     terminated = truncated = False
+    min_range = float("inf")
+    min_off_angle = float("inf")
+    steps_in_wez = 0
     while not (terminated or truncated):
         norm_obs = vecnorm.normalize_obs(obs)
         action, _ = model.predict(norm_obs, deterministic=True) #given current observation, what will the model do? / True means use model's preferred action
 
         obs, reward, terminated, truncated, info = raw.step(action)     #applies the action, and returns the five
+        min_range =  min(min_range, raw.range)
+        min_off_angle = min(min_off_angle, raw.off_angle)
+        if raw.rmin <= raw.range <= raw.rmax:
+            steps_in_wez = 1
+
         total_reward += float(reward)
 
         rows.append({
@@ -71,6 +79,19 @@ def get_episode(model, vecnorm, raw):
             "fuel_internal": 0.0,       #fuel is not important at this stage
             "gear_pos": raw.fdm['gear/gear-pos-norm'], # 0 - 1
             "alt_agl_m": raw.fdm['position/h-agl-ft'] * 0.3048,
+            #intercept metrics
+            "range_nm": raw.range / 1852.0,
+            "off_angle_deg" : np.degrees(raw.off_angle),
+            "closure_ms": float(obs[-1]),
+            "relative_alt_m" : float (obs[-2]),
+            "in_wez": bool (raw.rmin <= raw.range <= raw.rmax),
+            #bandit vs agent spatial track 
+            "bandit_n_m": float(raw.bandit_pos[0]),
+            "bandit_e_m": float(raw.bandit_pos[1]),
+            "bandit_up_m": float(raw.bandit_pos[2]),
+            "agent_n_m": float(raw.agent_pos()[0]),
+            "agent_e_m": float(raw.agent_pos()[1]),
+            "agent_up_m": float(raw.agent_pos()[2]),
             #above are csv format, below are additional checkings
             "step": step,
             "reward": reward,
@@ -90,13 +111,19 @@ def get_episode(model, vecnorm, raw):
         "completed": completed,
         "turned_deg": float(np.degrees(abs(raw.turned))),
         "rows": rows,
+        "min_range_nm": min_range / 1852.0,
+        "min_off_angle_deg": np.degress(min_off_angle),
+        "steps_in_wez": steps_in_wez,
+        "reached_wez" : bool(min_range <= raw.rmax)
     }
     return summary
 
 def episode_key(epi):
-    if epi["completed"]:    #if this episode completed turn. 
-        return (1, -epi["length"], epi["total_reward"])
-    return (0, epi["turned_deg"], epi["total_reward"])
+    #priority rank: reached wez, closest distance to wez, nose point direction, reward
+    return (int(epi["reached_wez"]),
+            -epi["min_range_nm"],
+            -epi["min_off_angle_deg"],
+            epi["total_reward"])
 
 
 def get_best_epi (model, vecnorm, raw, num_episodes):
@@ -109,7 +136,12 @@ def get_best_epi (model, vecnorm, raw, num_episodes):
     return best_run
 
 peak_episode = get_best_epi(model, vecnorm, raw, num_episodes=50) #pick the best episode first
-print(f"best episode -> completed: {peak_episode["completed"]} steps: {peak_episode["length"]}, turned deg: {peak_episode["turned_deg"]}, total reward: {peak_episode["total_reward"]}")
+print(f"best episode -> reached_wez: {peak_episode['reached_wez']}, "
+      f"min_range: {peak_episode['min_range_nm']:.2f} nm, "
+      f"min_off_angle: {peak_episode['min_off_angle_deg']:.1f} deg, "
+      f"steps_in_wez: {peak_episode['step_in_wez']}, "
+      f"reward: {peak_episode['total_reward']:.1f}")
+
 field_names = list(peak_episode["rows"][0].keys())
 with open ("eval_best.csv", "w", newline="") as f:     #open the csv 
     writer = csv.DictWriter(f, fieldnames=field_names)

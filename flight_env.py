@@ -13,7 +13,7 @@ class F16Env(gym.Env):
         self.fdm.set_debug_level(0)             #remove banners of aircraft configurations (hundres loc)
         self.fdm.load_model('f16')              #load f16
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(14,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(17,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 300
@@ -21,10 +21,26 @@ class F16Env(gym.Env):
         self.target_alt_ft = 10000.0
         self.sim_steps_per_action = 12
 
+        #WEZ (Weapon Engagement Zone) configs
+        nm_to_m = 1852.0
+        self.rmax = 3.0 * nm_to_m  #
+        self.rmin = 0.5 * nm_to_m
+        self.rne = 1.0 * nm_to_m   #no escape zone
+        self.seeker_vertical_half = np.radians(60)
+        self.seeker_horizontal_half = np.radians(60) 
+
+        #Missile configs (aim9x)
+        sound_mps = 300.0 #speed of sound (m/s, mach) universal number for 10k - 30k ft
+        self.missile_speed_max = 3.0 * sound_mps #max speed m/s
+        self.max_flight_time = 30.0 #second
+        self.lethal_radius = 7.0    #meters
+        self.missile_count = 1   
+        self.missile_max_g = 40.0 
+
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
-        self.fdm['ic/h-sl-ft'] = 10000.0#self.np_random.integers(8000, 12000) #randomize the starting position of the aircraft
-        self.fdm['ic/vc-kts'] = self.np_random.integers(350,400)  #knots
+        self.fdm['ic/h-sl-ft'] = 20000.0#self.np_random.integers(8000, 12000) #randomize the starting position of the aircraft
+        self.fdm['ic/vc-kts'] = 450.0 #self.np_random.integers(350,400)  #knots
         self.fdm['ic/throttle-cmd-norm'] = 0.5
         self.fdm['ic/elevator-cmd-norm'] = 0.0
         self.fdm["gear/gear-cmd-norm"] = 0.0
@@ -43,20 +59,44 @@ class F16Env(gym.Env):
         #bandit stats
         self.lat_agent = self.fdm['position/lat-geod-deg']
         self.lon_agent = self.fdm['position/long-gc-deg'] 
-        self.bandit_vel = np.array([300.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
+        self.bandit_vel = np.array([127.3, 127.3, 0.0])   #due north, not changing altitude, 0 vertical speed
                                     #north,east,up(vs)
-        self.bandit_pos = np.array([5556.0, 0.0, 9144.0]) #due north, at 30000ft
+        self.bandit_pos = np.array([4774.0, 4774.0, 9144.0]) #due north, at 30000ft
                                     #north,east,up(alt)
         
         self.prev_heading = self.fdm['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
         obs = self._get_obs()   #contains the 8 observation data from def _get_obs
+        self.prev_range_err = self.range_err()
+        self.prev_off_angle = self.off_angle
+
         info = {}
         return obs, info
     
     def _get_obs(self):
-        return np.array(
+
+        relative_data = self.bandit_pos - self.agent_pos()
+        range = np.linalg.norm(relative_data)
+        los_hat = relative_data / (range + 1e-9) #normalize range, leaving the pure direction 
+        #3D cone
+        pitch_angle = self.fdm['attitude/theta-rad']
+        heading_angle = self.fdm['attitude/psi-rad']  #from north's perspective
+        nose_vec = np.array([np.cos(pitch_angle) * np.cos(heading_angle),   #North
+                             np.cos(pitch_angle) * np.sin(heading_angle),   #East
+                             np.sin(pitch_angle)])                          #Up
+        self.range = float(range)
+        bearing = np.arctan2(relative_data[1], relative_data[0]) #Absolute bearing: from north 
+        angle_off = (bearing - self.fdm['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
+        self.off_angle = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
+        relative_alt = relative_data[2]
+        agent_vel = np.array([self.fdm['velocities/v-north-fps'] * 0.3048,
+                              self.fdm['velocities/v-east-fps'] * 0.3048,
+                              -self.fdm['velocities/v-down-fps'] * 0.3048])
+        closure = -np.dot(self.bandit_vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
+        
+        bandit_state = np.array([range, angle_off, relative_alt, closure], dtype=np.float32)
+        agent_state = np.array(
             [self.fdm['position/h-sl-meters'],          #altitude
             self.fdm['velocities/vc-fps'] * 0.3048,     #IAS
             self.fdm['attitude/theta-rad'],             #pitch
@@ -70,10 +110,10 @@ class F16Env(gym.Env):
             self.fdm['velocities/mach'],                #corner speed monitor
             self.fdm['velocities/r-rad_sec'],           #yaw rate
             self.fdm['aero/beta-deg'],                  #sideslip (yaw angle)    
-            2*np.pi - self.turned,          #remaining degrees need to be turned 
             ], dtype = np.float32
         )
-    
+
+        return np.concatenate([agent_state, bandit_state])
     def agent_pos(self):
         lat = self.fdm['position/lat-geod-deg']
         lon = self.fdm['position/long-gc-deg']
@@ -84,8 +124,11 @@ class F16Env(gym.Env):
         east = (lon - self.lon_agent) * 111320.0 * np.cos(np.radians(self.lat_agent))
         up = alt
 
-        return np.array([north, east, up])
+        return np.array([north, east, up])        
     
+    def range_err (self):
+        return max (0.0, self.range - self.rmax) + max(0.0, self.rmin - self.range)
+
     def step(self, action):
         self.fdm['fcs/throttle-cmd-norm'] = float ((action[0] + 1.0) / 2.0)   #assign value back to the self.action_space
         self.fdm['fcs/elevator-cmd-norm'] = float (action[1])
@@ -97,15 +140,14 @@ class F16Env(gym.Env):
             self.fdm.run()
         dt = self.fdm.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
         self.bandit_pos += self.bandit_vel * dt
-
+        
         #get obs
         obs = self._get_obs()
 
         self.curr_step += 1
         alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
-        completed = bool(abs(self.turned) >= 2*np.pi) 
         crashed = bool((alt_agl_m < 30) or abs(self.fdm['attitude/phi-rad']) > np.radians(100))
-        terminated = crashed or completed
+        terminated = crashed
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         curr_alt_ft = self.fdm['position/h-sl-ft']
         target_alt_ft = self.target_alt_ft
@@ -126,40 +168,39 @@ class F16Env(gym.Env):
         reward = -0.1   #per step++, reward += 0.1        
         if crashed: #crashed
             reward -= 100.0
-        if completed: reward += 50.0
         #air speed policy  
         if speed_knots < 350:
             reward -= 0.05 * abs(speed_knots - 350)
         #elif speed_knots > 400:
         #    reward -= 0.05 * (speed_knots - 400)
 
-        #throttle policy (max turn specific)
-        reward -= 0.1 * abs(curr_throttle - 1.0)
-        #Optimized reward unit
-        alt_diff_ft = curr_alt_ft - target_alt_ft
-
-        #Elevator saturation / smoothness limiter 
+        #Elevator anti bang bang
         delta_elev = abs(action[1] - self.prev_elev)
         reward -= 0.30 * delta_elev
         self.prev_elev = action[1]
-        #Altitude policy
-        #reward += 0.15 * max(0.0, 1.0 - abs(alt_diff_ft) / 100)
-        reward -= min(0.5, abs(alt_diff_ft) / 500)
 
-        #Turning Policy
+        #Aileron anti bang bang
         delta_aile = abs(action[2] - self.prev_aile)
         reward -= 0.30 * delta_aile
         self.prev_aile = action[2]
-        reward += 5.0 * delta_turn #+ when turning the commanded way 
         
-        #guide banking
-        reward -= 0.5 * max(0.0, abs(curr_bank) - 84)
+        #anti bang bang
         reward -= 0.1 * abs(roll_rate)
         d_pitch_rate = abs(pitch_rate - self.prev_pitch_rate)
         reward -= 0.2 * d_pitch_rate
         self.prev_pitch_rate = pitch_rate
-        #G_load policy: 
         
+        #maneuver policy: shorten range and position seeker cone
+        #range
+        range_error = self.range_err()
+        reward += 0.02 * (self.prev_range_err - range_error)
+        self.prev_range_err = range_error
+        if range_error == 0.0: 
+            reward += 0.5
+        #seeker cone
+        angle_diff = self.off_angle
+        reward += 20 * (self.prev_off_angle - angle_diff)
+        self.prev_off_angle = angle_diff
         info = {}
         return obs, float(reward), terminated, truncated, info    
         
