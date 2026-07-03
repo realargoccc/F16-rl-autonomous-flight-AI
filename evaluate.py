@@ -21,12 +21,12 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v1.9.1.pkl"
+vecnorm_path = "vecnorm_eleva_v2.0.0.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v1.9.1.zip")
+model = PPO.load("ppo_f16_eleva_v2.0.0.zip")
 raw = F16Env()
 
 def get_episode(model, vecnorm, raw):
@@ -47,7 +47,7 @@ def get_episode(model, vecnorm, raw):
         min_range =  min(min_range, raw.range)
         min_off_angle = min(min_off_angle, raw.off_angle)
         if raw.rmin <= raw.range <= raw.rmax:
-            steps_in_wez = 1
+            steps_in_wez += 1
 
         total_reward += float(reward)
 
@@ -112,7 +112,7 @@ def get_episode(model, vecnorm, raw):
         "turned_deg": float(np.degrees(abs(raw.turned))),
         "rows": rows,
         "min_range_nm": min_range / 1852.0,
-        "min_off_angle_deg": np.degress(min_off_angle),
+        "min_off_angle_deg": np.degrees(min_off_angle),
         "steps_in_wez": steps_in_wez,
         "reached_wez" : bool(min_range <= raw.rmax)
     }
@@ -139,7 +139,7 @@ peak_episode = get_best_epi(model, vecnorm, raw, num_episodes=50) #pick the best
 print(f"best episode -> reached_wez: {peak_episode['reached_wez']}, "
       f"min_range: {peak_episode['min_range_nm']:.2f} nm, "
       f"min_off_angle: {peak_episode['min_off_angle_deg']:.1f} deg, "
-      f"steps_in_wez: {peak_episode['step_in_wez']}, "
+      f"steps_in_wez: {peak_episode['steps_in_wez']}, "
       f"reward: {peak_episode['total_reward']:.1f}")
 
 field_names = list(peak_episode["rows"][0].keys())
