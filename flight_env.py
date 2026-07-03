@@ -13,7 +13,7 @@ class F16Env(gym.Env):
         self.fdm.set_debug_level(0)             #remove banners of aircraft configurations (hundres loc)
         self.fdm.load_model('f16')              #load f16
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(17,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(21,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 300
@@ -55,6 +55,8 @@ class F16Env(gym.Env):
         self.curr_step = 0
         self.prev_elev = 0.0
         self.prev_aile = 0.0
+        self.prev_rudder = 0.0
+        self.prev_throttle = 0.0
 
         #bandit stats
         self.lat_agent = self.fdm['position/lat-geod-deg']
@@ -109,7 +111,11 @@ class F16Env(gym.Env):
             self.fdm['accelerations/Nz'],               #g_load
             self.fdm['velocities/mach'],                #corner speed monitor
             self.fdm['velocities/r-rad_sec'],           #yaw rate
-            self.fdm['aero/beta-deg'],                  #sideslip (yaw angle)    
+            self.fdm['aero/beta-deg'],                  #sideslip (yaw angle)
+            self.prev_elev,
+            self.prev_aile,
+            self.prev_rudder,
+            self.prev_throttle,    
             ], dtype = np.float32
         )
 
@@ -176,19 +182,22 @@ class F16Env(gym.Env):
 
         #Elevator anti bang bang
         delta_elev = abs(action[1] - self.prev_elev)
-        reward -= 0.30 * delta_elev
+        reward -= 1.0 * delta_elev
         self.prev_elev = action[1]
 
         #Aileron anti bang bang
         delta_aile = abs(action[2] - self.prev_aile)
-        reward -= 0.30 * delta_aile
+        reward -= 1.0 * delta_aile
         self.prev_aile = action[2]
         
+        reward -= 0.2 * (abs(action[1]) + abs(action[2]))
         #anti bang bang
         reward -= 0.1 * abs(roll_rate)
         d_pitch_rate = abs(pitch_rate - self.prev_pitch_rate)
         reward -= 0.2 * d_pitch_rate
         self.prev_pitch_rate = pitch_rate
+        self.prev_throttle = action[0]
+        self.prev_rudder = action[3]
         
         #maneuver policy: shorten range and position seeker cone
         #range
@@ -199,7 +208,7 @@ class F16Env(gym.Env):
             reward += 0.5
         #seeker cone
         angle_diff = self.off_angle
-        reward += 20 * (self.prev_off_angle - angle_diff)
+        reward += 3.0 * (self.prev_off_angle - angle_diff)
         self.prev_off_angle = angle_diff
         info = {}
         return obs, float(reward), terminated, truncated, info    

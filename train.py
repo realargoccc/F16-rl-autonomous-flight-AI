@@ -8,9 +8,9 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
 model_load = "ppo_f16_eleva_v2.0.0.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v2.0.0.zip" 
+model_path = "ppo_f16_eleva_v2.0.1.zip" 
 vecnorm_load = "vecnorm_eleva_v2.0.0.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v2.0.0.pkl"
+vecnorm_path = "vecnorm_eleva_v2.0.1.pkl"
 
 #sanity check 
 #env = F16Env()
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     #model = PPO.load(model_load, env=env, verbose = 1, tensorboard_log="./tb_logs/")
     model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.99, ent_coef = 0.01, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
 
-    model.learn(total_timesteps= 1_600_000, tb_log_name="v2.0.0") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
+    model.learn(total_timesteps= 1_600_000, tb_log_name="v2.0.1") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
     model.save(model_path)
     env.save(vecnorm_path)
 
