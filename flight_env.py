@@ -57,6 +57,9 @@ class F16Env(gym.Env):
         self.prev_aile = 0.0
         self.prev_rudder = 0.0
         self.prev_throttle = 0.0
+        self.elev_cmd = 0.0
+        self.aile_cmd = 0.0
+        self.rud_cmd = 0.0
 
         #bandit stats
         self.lat_agent = self.fdm['position/lat-geod-deg']
