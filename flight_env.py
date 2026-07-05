@@ -139,10 +139,15 @@ class F16Env(gym.Env):
         return max (0.0, self.range - self.rmax) + max(0.0, self.rmin - self.range)
 
     def step(self, action):
+        a = 0.4
+        self.elev_cmd = a * float(action[1]) + (1-a) * self.elev_cmd
+        self.aile_cmd = a * float(action[2]) + (1-a) * self.aile_cmd
+        self.rud_cmd = a * float(action[2]) + (1-a) * self.rud_cmd
+
         self.fdm['fcs/throttle-cmd-norm'] = float ((action[0] + 1.0) / 2.0)   #assign value back to the self.action_space
-        self.fdm['fcs/elevator-cmd-norm'] = float (action[1])
-        self.fdm['fcs/aileron-cmd-norm'] = float (action[2])
-        self.fdm['fcs/rudder-cmd-norm'] = float (action[3])
+        self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
+        self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
+        self.fdm['fcs/rudder-cmd-norm'] = self.rud_cmd
         self.fdm["gear/gear-cmd-norm"] = 0.0
         #run 
         for _ in range(self.sim_steps_per_action):
@@ -184,23 +189,23 @@ class F16Env(gym.Env):
         #    reward -= 0.05 * (speed_knots - 400)
 
         #Elevator anti bang bang
-        delta_elev = abs(action[1] - self.prev_elev)
-        reward -= 1.0 * delta_elev
-        self.prev_elev = action[1]
+        delta_elev = abs(self.elev_cmd - self.prev_elev)
+        reward -= 0.2 * delta_elev
+        self.prev_elev = self.elev_cmd
 
         #Aileron anti bang bang
-        delta_aile = abs(action[2] - self.prev_aile)
-        reward -= 1.0 * delta_aile
-        self.prev_aile = action[2]
+        delta_aile = abs(self.aile_cmd - self.prev_aile)
+        reward -= 0.2 * delta_aile
+        self.prev_aile = self.aile_cmd
         
-        reward -= 0.2 * (abs(action[1]) + abs(action[2]))
+        reward -= 0.6 * (abs(self.elev_cmd) + abs(self.aile_cmd) + abs(self.rud_cmd))
         #anti bang bang
         reward -= 0.1 * abs(roll_rate)
         d_pitch_rate = abs(pitch_rate - self.prev_pitch_rate)
         reward -= 0.2 * d_pitch_rate
         self.prev_pitch_rate = pitch_rate
         self.prev_throttle = action[0]
-        self.prev_rudder = action[3]
+        self.prev_rudder = self.rud_cmd
         
         #maneuver policy: shorten range and position seeker cone
         #range
