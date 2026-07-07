@@ -64,9 +64,9 @@ class F16Env(gym.Env):
         #bandit stats
         self.lat_agent = self.fdm['position/lat-geod-deg']
         self.lon_agent = self.fdm['position/long-gc-deg'] 
-        self.bandit_vel = np.array([127.3, 127.3, 0.0])   #due north, not changing altitude, 0 vertical speed
+        self.bandit_vel = np.array([0.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
                                     #north,east,up(vs)
-        self.bandit_pos = np.array([4774.0, 4774.0, 9144.0]) #due north, at 30000ft
+        self.bandit_pos = np.array([7400.0, 0.0, 6096.0]) #due north, at 30000ft
                                     #north,east,up(alt)
         
         self.prev_heading = self.fdm['attitude/psi-rad']
@@ -142,7 +142,7 @@ class F16Env(gym.Env):
         a = 0.4
         self.elev_cmd = a * float(action[1]) + (1-a) * self.elev_cmd
         self.aile_cmd = a * float(action[2]) + (1-a) * self.aile_cmd
-        self.rud_cmd = a * float(action[2]) + (1-a) * self.rud_cmd
+        self.rud_cmd = a * float(action[3]) + (1-a) * self.rud_cmd
 
         self.fdm['fcs/throttle-cmd-norm'] = float ((action[0] + 1.0) / 2.0)   #assign value back to the self.action_space
         self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
@@ -160,7 +160,7 @@ class F16Env(gym.Env):
 
         self.curr_step += 1
         alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
-        crashed = bool((alt_agl_m < 30) or abs(self.fdm['attitude/phi-rad']) > np.radians(100))
+        crashed = bool((alt_agl_m < 30) or abs(self.fdm['attitude/phi-rad']) > np.radians(100)) or abs(self.fdm['accelerations/Nz']) > 9.0
         terminated = crashed
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         curr_alt_ft = self.fdm['position/h-sl-ft']
@@ -170,6 +170,7 @@ class F16Env(gym.Env):
         #Turning Policy Units
         curr_heading = self.fdm['attitude/psi-rad'] 
         curr_bank = self.fdm['attitude/phi-deg'] 
+        curr_g = self.fdm['accelerations/Nz']
 
         #Min radius turn units:
         roll_rate = self.fdm['velocities/p-rad_sec']     
@@ -179,45 +180,34 @@ class F16Env(gym.Env):
         self.prev_heading = curr_heading
 
         #reward computations
-        reward = -0.1   #per step++, reward += 0.1        
-        if crashed: #crashed
-            reward -= 100.0
-        #air speed policy  
-        if speed_knots < 350:
-            reward -= 0.05 * abs(speed_knots - 350)
-        #elif speed_knots > 400:
-        #    reward -= 0.05 * (speed_knots - 400)
-
-        #Elevator anti bang bang
-        delta_elev = abs(self.elev_cmd - self.prev_elev)
-        reward -= 0.2 * delta_elev
-        self.prev_elev = self.elev_cmd
-
-        #Aileron anti bang bang
-        delta_aile = abs(self.aile_cmd - self.prev_aile)
-        reward -= 0.2 * delta_aile
-        self.prev_aile = self.aile_cmd
-        
-        reward -= 0.6 * (abs(self.elev_cmd) + abs(self.aile_cmd) + abs(self.rud_cmd))
-        #anti bang bang
-        reward -= 0.1 * abs(roll_rate)
-        d_pitch_rate = abs(pitch_rate - self.prev_pitch_rate)
-        reward -= 0.2 * d_pitch_rate
-        self.prev_pitch_rate = pitch_rate
-        self.prev_throttle = action[0]
-        self.prev_rudder = self.rud_cmd
-        
-        #maneuver policy: shorten range and position seeker cone
-        #range
         range_error = self.range_err()
-        reward += 0.02 * (self.prev_range_err - range_error)
-        self.prev_range_err = range_error
-        if range_error == 0.0: 
-            reward += 0.5
-        #seeker cone
-        angle_diff = self.off_angle
-        reward += 3.0 * (self.prev_off_angle - angle_diff)
-        self.prev_off_angle = angle_diff
+        in_cone     = self.off_angle < self.seeker_horizontal_half   # 60°, line 30
+
+        reward  = -0.1                                         # per-step: commit fast  (NOT -=)
+        reward += 0.01 * (self.prev_range_err - range_error)   # close the 3D gap
+        self.prev_range_err = range_error                      # update AFTER, once
+
+        reward += 1.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
+        self.prev_off_angle = self.off_angle
+
+        if range_error == 0.0 and in_cone:                     # valid shot = band AND cone
+            reward += 100.0
+            terminated = True                                  # fire once, then done
+        if crashed:
+            reward -= 100.0                                    # ground / bank / over-g (L163)
+
+        # constraint rails — flat interior, wall at the edge
+        if speed_knots < 400:
+            reward -= 0.03 * (400 - speed_knots)
+        elif speed_knots > 800:
+            reward -= 0.03 * (speed_knots - 800)
+        if abs(curr_g) > 7.0:
+            reward -= 0.1 * (abs(curr_g) - 7.0)                # g back-off ramp
+
+        # bookkeeping — feeds the observation
+        self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd
+        self.prev_rudder, self.prev_throttle = self.rud_cmd,  action[0]
+        
         info = {}
         return obs, float(reward), terminated, truncated, info    
         
