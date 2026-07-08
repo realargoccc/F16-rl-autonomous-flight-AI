@@ -66,9 +66,8 @@ class F16Env(gym.Env):
         self.lon_agent = self.fdm['position/long-gc-deg'] 
         self.bandit_vel = np.array([0.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
                                     #north,east,up(vs)
-        self.bandit_pos = np.array([7400.0, 0.0, 6096.0]) #due north, at 30000ft
+        self.bandit_pos = np.array([5200.0, 5200.0, 9144.0]) #due north, at 30000ft
                                     #north,east,up(alt)
-        
         self.prev_heading = self.fdm['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
@@ -203,6 +202,12 @@ class F16Env(gym.Env):
             reward -= 0.03 * (speed_knots - 800)
         if abs(curr_g) > 7.0:
             reward -= 0.1 * (abs(curr_g) - 7.0)                # g back-off ramp
+        
+        #banking limitation
+        if self.off_angle < np.radians(10):
+            reward -= 0.005 * abs(curr_bank)
+        if abs(curr_bank) > 80.0:
+            reward -= 0.1 * (abs(curr_bank) - 80.0)
 
         # bookkeeping — feeds the observation
         self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd
