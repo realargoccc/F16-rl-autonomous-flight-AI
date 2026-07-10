@@ -67,7 +67,7 @@ class F16Env(gym.Env):
         self.bandit_vel = np.array([0.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
                                     #north,east,up(vs)
         range_from_wez = self.np_random.uniform(3.5, 5.5) * 1852.0
-        bearing = self.np_random.uniform(-np.radians(10), np.radians(10))
+        bearing = self.np_random.uniform(-np.radians(120), np.radians(120))
         rel_alt = self.np_random.uniform(-3000.0, 3000.0)
         agent_alt_m = self.fdm['position/h-sl-meters']
         self.bandit_pos = np.array([range_from_wez * np.cos(bearing),
@@ -165,7 +165,7 @@ class F16Env(gym.Env):
 
         self.curr_step += 1
         alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
-        crashed = bool((alt_agl_m < 30) or abs(self.fdm['attitude/phi-rad']) > np.radians(100)) or abs(self.fdm['accelerations/Nz']) > 9.0
+        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0
         terminated = crashed
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         curr_alt_ft = self.fdm['position/h-sl-ft']
@@ -212,8 +212,6 @@ class F16Env(gym.Env):
         #banking limitation
         if self.off_angle < np.radians(10):
             reward -= 0.005 * abs(curr_bank)
-        if abs(curr_bank) > 80.0:
-            reward -= 0.1 * (abs(curr_bank) - 80.0)
 
         # bookkeeping — feeds the observation
         self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd

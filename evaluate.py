@@ -21,12 +21,12 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v2.0.4.pkl"
+vecnorm_path = "vecnorm_eleva_v2.0.7.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v2.0.4.zip")
+model = PPO.load("ppo_f16_eleva_v2.0.7.zip")
 raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):
@@ -130,8 +130,7 @@ def episode_key(epi):
             -epi["min_off_angle_deg"],
             epi["total_reward"])
 
-
-def seed_sweep (model, vecnorm, raw, num_episodes=50):
+def seed_sweep(model, vecnorm, raw, num_episodes=50):
     wins = 0        #total kills
     low_wins = 0    #how many look down ends up a kill
     low_n = 0       #how many of 50 are look down cases
@@ -143,14 +142,14 @@ def seed_sweep (model, vecnorm, raw, num_episodes=50):
         if episode["rel_alt_init"] < 0:
             low_n += 1; low_wins += int(episode["kill"])
         
-        print(f"ep{epi:02d} relative alt {episode['rel_alt_init']:+6.0f}meters "
-              f"Kill ={str(episode['kill']):5} min range: {episode['min_range_nm']:.2f} nm "
-              f"min off angle: {episode['min_off_angle_deg']:3.0f}°"
+        print(f"ep{epi:02d} relative alt: {episode['rel_alt_init']:+6.0f}meters | "
+              f"Kill ={str(episode['kill']):5} | min range: {episode['min_range_nm']:.2f}nm | "
+              f"min off angle:{episode['min_off_angle_deg']:3.0f}° | "
               f"reward = {episode['total_reward']:6.1f} ")
-        print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
-              f"nose down case: {low_wins} / {low_n}")
+    print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
+          f"lower and win case: {low_wins} / {low_n}")
         
-peak_episode = get_best_epi(model, vecnorm, raw, num_episodes=50) #pick the best episode first
+peak_episode = seed_sweep(model, vecnorm, raw, num_episodes=50) #pick the best episode first
 print(f"best episode -> reached_wez: {peak_episode['reached_wez']}, "
       f"min_range: {peak_episode['min_range_nm']:.2f} nm, "
       f"min_off_angle: {peak_episode['min_off_angle_deg']:.1f} deg, "
