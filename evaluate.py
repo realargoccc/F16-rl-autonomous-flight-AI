@@ -21,16 +21,18 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v2.0.3.pkl"
+vecnorm_path = "vecnorm_eleva_v2.0.4.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v2.0.3.zip")
+model = PPO.load("ppo_f16_eleva_v2.0.4.zip")
 raw = F16Env()
 
-def get_episode(model, vecnorm, raw):
-    obs, _ = raw.reset()     #reset observations
+def get_episode(model, vecnorm, raw, seed=None):
+    obs, _ = raw.reset(seed=seed)     #reset observations
+    rel_alt0 = float(raw.bandit_pos[2] - raw.agent_pos()[2])    #the alt diff, if < 0, nose down
+    kill = False
     start_time = raw.fdm.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
@@ -42,8 +44,9 @@ def get_episode(model, vecnorm, raw):
     while not (terminated or truncated):
         norm_obs = vecnorm.normalize_obs(obs)
         action, _ = model.predict(norm_obs, deterministic=True) #given current observation, what will the model do? / True means use model's preferred action
-
         obs, reward, terminated, truncated, info = raw.step(action)     #applies the action, and returns the five
+        if raw.range_err() == 0.0 and raw.off_angle < raw.seeker_horizontal_half:
+            kill = True
         min_range =  min(min_range, raw.range)
         min_off_angle = min(min_off_angle, raw.off_angle)
         if raw.rmin <= raw.range <= raw.rmax:
@@ -114,7 +117,9 @@ def get_episode(model, vecnorm, raw):
         "min_range_nm": min_range / 1852.0,
         "min_off_angle_deg": np.degrees(min_off_angle),
         "steps_in_wez": steps_in_wez,
-        "reached_wez" : bool(min_range <= raw.rmax)
+        "reached_wez" : bool(min_range <= raw.rmax),
+        "kill": bool(kill),
+        "rel_alt_init": rel_alt0
     }
     return summary
 
@@ -126,12 +131,20 @@ def episode_key(epi):
             epi["total_reward"])
 
 
-def get_best_epi (model, vecnorm, raw, num_episodes):
-    best_run = None
-    for _ in range(num_episodes):
-        episode = get_episode(model, vecnorm, raw)
-        if best_run is None or episode_key(episode) > episode_key(best_run):
-            best_run = episode
+def seed_sweep (model, vecnorm, raw, num_episodes=50):
+    wins = 0        #total kills
+    low_wins = 0    #how many look down ends up a kill
+    low_n = 0       #how many of 50 are look down cases
+
+    for epi in range(num_episodes):
+        episode = get_episode(model, vecnorm, raw, seed=1000+epi)
+        if episode["kill"]:
+            wins += 1
+        if episode["rel_alt_init"] < 0:
+            low_n += 1; low_wins += int(episode["kill"])
+        
+        
+
 
     return best_run
 

@@ -39,7 +39,7 @@ class F16Env(gym.Env):
 
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
-        self.fdm['ic/h-sl-ft'] = 20000.0#self.np_random.integers(8000, 12000) #randomize the starting position of the aircraft
+        self.fdm['ic/h-sl-ft'] = self.np_random.integers(18000, 25000) #randomize the starting position of the aircraft
         self.fdm['ic/vc-kts'] = 450.0 #self.np_random.integers(350,400)  #knots
         self.fdm['ic/throttle-cmd-norm'] = 0.5
         self.fdm['ic/elevator-cmd-norm'] = 0.0
@@ -66,7 +66,13 @@ class F16Env(gym.Env):
         self.lon_agent = self.fdm['position/long-gc-deg'] 
         self.bandit_vel = np.array([0.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
                                     #north,east,up(vs)
-        self.bandit_pos = np.array([5200.0, 5200.0, 9144.0]) #due north, at 30000ft
+        range_from_wez = self.np_random.uniform(3.5, 5.5) * 1852.0
+        bearing = self.np_random.uniform(-np.radians(10), np.radians(10))
+        rel_alt = self.np_random.uniform(-3000.0, 3000.0)
+        agent_alt_m = self.fdm['position/h-sl-meters']
+        self.bandit_pos = np.array([range_from_wez * np.cos(bearing),
+                                    range_from_wez * np.sin(bearing),
+                                    agent_alt_m + rel_alt]) #due north, at 30000ft
                                     #north,east,up(alt)
         self.prev_heading = self.fdm['attitude/psi-rad']
         self.turned = 0.0   #accumulator
