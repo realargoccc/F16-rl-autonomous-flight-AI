@@ -143,11 +143,13 @@ def seed_sweep (model, vecnorm, raw, num_episodes=50):
         if episode["rel_alt_init"] < 0:
             low_n += 1; low_wins += int(episode["kill"])
         
+        print(f"ep{epi:02d} relative alt {episode['rel_alt_init']:+6.0f}meters "
+              f"Kill ={str(episode['kill']):5} min range: {episode['min_range_nm']:.2f} nm "
+              f"min off angle: {episode['min_off_angle_deg']:3.0f}°"
+              f"reward = {episode['total_reward']:6.1f} ")
+        print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
+              f"nose down case: {low_wins} / {low_n}")
         
-
-
-    return best_run
-
 peak_episode = get_best_epi(model, vecnorm, raw, num_episodes=50) #pick the best episode first
 print(f"best episode -> reached_wez: {peak_episode['reached_wez']}, "
       f"min_range: {peak_episode['min_range_nm']:.2f} nm, "
