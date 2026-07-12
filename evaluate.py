@@ -148,20 +148,16 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
               f"reward = {episode['total_reward']:6.1f} ")
     print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
           f"lower and win case: {low_wins} / {low_n}")
-        
-peak_episode = seed_sweep(model, vecnorm, raw, num_episodes=50) #pick the best episode first
-print(f"best episode -> reached_wez: {peak_episode['reached_wez']}, "
-      f"min_range: {peak_episode['min_range_nm']:.2f} nm, "
-      f"min_off_angle: {peak_episode['min_off_angle_deg']:.1f} deg, "
-      f"steps_in_wez: {peak_episode['steps_in_wez']}, "
-      f"reward: {peak_episode['total_reward']:.1f}")
 
-field_names = list(peak_episode["rows"][0].keys())
+seed_sweep(model, vecnorm, raw, num_episodes=50)
+sample = get_episode(model, vecnorm, raw, seed=1000) #pick the best episode first
+
+field_names = list(sample["rows"][0].keys())
 with open ("eval_best.csv", "w", newline="") as f:     #open the csv 
     writer = csv.DictWriter(f, fieldnames=field_names)
     writer.writeheader()
     #writer.writerows(peak_episode["rows"]) Option A:
-    for row in peak_episode["rows"]:        #Option B: I prefer B as it is detailed 
+    for row in sample["rows"]:        #Option B: I prefer B as it is detailed 
         writer.writerow(row)
 
 #run code: python evaluate.py

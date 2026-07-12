@@ -3,8 +3,8 @@ from flight_env import F16Env
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3 import PPO
 
-model_path = "ppo_f16_eleva_v2.0.5.zip"
-vecnorm_path = "vecnorm_eleva_v2.0.5.pkl"
+model_path = "ppo_f16_eleva_v2.0.7.zip"
+vecnorm_path = "vecnorm_eleva_v2.0.7.pkl"
 fg_directive = "data_output/flightgear.xml" #sends net_fdm to localhost:5550 (receiver in flightgear settings)
 
 env = DummyVecEnv([lambda: F16Env()])
