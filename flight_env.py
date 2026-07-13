@@ -195,6 +195,11 @@ class F16Env(gym.Env):
         reward += 1.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
         self.prev_off_angle = self.off_angle
 
+        #gate control smoothness policy 
+        gate = max(0.0, 1.0 - self.off_angle / np.radians(25.0))
+        d_action = np.asarray(action, dtype=np.float32) - self.prev_action 
+        reward -= 0.5 * gate * float(np.sum(np.square(d_action[1:4])))
+
         if range_error == 0.0 and in_cone:                     # valid shot = band AND cone
             reward += 100.0
             terminated = True                                  # fire once, then done
