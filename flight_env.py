@@ -60,6 +60,7 @@ class F16Env(gym.Env):
         self.elev_cmd = 0.0
         self.aile_cmd = 0.0
         self.rud_cmd = 0.0
+        self.prev_action = np.zeros(4, dtype=np.float32) #currently 4 actions in action space
 
         #bandit stats
         self.lat_agent = self.fdm['position/lat-geod-deg']
@@ -74,6 +75,10 @@ class F16Env(gym.Env):
                                     range_from_wez * np.sin(bearing),
                                     agent_alt_m + rel_alt]) #due north, at 30000ft
                                     #north,east,up(alt)
+        self.bandit_speed = 300.0
+        los_bandit = self.agent_pos() - self.bandit_pos
+        self.bandit_heading = np.arctan2(los_bandit[1], los_bandit[0])
+
         self.prev_heading = self.fdm['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
@@ -155,6 +160,10 @@ class F16Env(gym.Env):
         self.fdm['fcs/rudder-cmd-norm'] = self.rud_cmd
         self.fdm["gear/gear-cmd-norm"] = 0.0
         #run 
+        los = self.agent_pos() - self.bandit_pos
+        desire_enga = np.arctan2(los[1], los[0])
+        err = (desire_enga - self.bandit_heading + np.pi) % (2*np.pi) - np.pi 
+        
         for _ in range(self.sim_steps_per_action):
             self.fdm.run()
         dt = self.fdm.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
@@ -197,8 +206,8 @@ class F16Env(gym.Env):
 
         #gate control smoothness policy 
         gate = max(0.0, 1.0 - self.off_angle / np.radians(25.0))
-        d_action = np.asarray(action, dtype=np.float32) - self.prev_action 
-        reward -= 0.5 * gate * float(np.sum(np.square(d_action[1:4])))
+        delta_action = np.asarray(action, dtype=np.float32) - self.prev_action 
+        reward -= 0.5 * gate * float(np.sum(np.square(delta_action[1:4])))
 
         if range_error == 0.0 and in_cone:                     # valid shot = band AND cone
             reward += 100.0
@@ -220,6 +229,7 @@ class F16Env(gym.Env):
 
         # bookkeeping — feeds the observation
         self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd
+        self.prev_action = np.array(action, dtype=np.float32)
         self.prev_rudder, self.prev_throttle = self.rud_cmd,  action[0]
         
         info = {}
