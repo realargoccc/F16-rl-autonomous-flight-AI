@@ -7,6 +7,31 @@ import random
 
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
+class Bandit:
+    def __init__(self):
+        self.speed = 300.0
+        self.max_turn_rate = np.radians(18.0)
+        self.hp = 1.0
+    
+    def reset(self, np_random, agent_alt_m):
+        range_wez = np_random.uniform(3.5, 5.5) * 1852.0
+        bearing = np_random.uniform(-np.radians(120), np.radians(120))
+        rel_alt = np_random.uniform(-3000.0, 3000.0)
+        self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
+        self.heading = np_random.uniform(-np.pi, np.pi)
+        self.vel = self.speed ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
+        self.hp = 1.0
+
+    def step(self, agent_pos, dt):
+        los = self.agent_pos() - self.bandit_pos
+        desire_enga = np.arctan2(los[1], los[0])
+        err = (desire_enga - self.bandit_heading + np.pi) % (2*np.pi) - np.pi 
+        self.bandit_heading += np.clip(err, -np.radians(9.0) * dt, np.radians(9.0) * dt)
+        self.bandit_vel = self.bandit_speed * np.array([np.cos(self.bandit_heading), 
+                                                        np.sin(self.bandit_heading), 0.0])
+        self.bandit_pos += self.bandit_vel * dt
+
+
 class F16Env(gym.Env):
     def __init__(self):
         self.fdm = jsbsim.FGFDMExec(ROOT, None) #load FDM
@@ -67,17 +92,6 @@ class F16Env(gym.Env):
         self.lon_agent = self.fdm['position/long-gc-deg'] 
         self.bandit_vel = np.array([0.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
                                     #north,east,up(vs)
-        range_from_wez = self.np_random.uniform(3.5, 5.5) * 1852.0
-        bearing = self.np_random.uniform(-np.radians(120), np.radians(120))
-        rel_alt = self.np_random.uniform(-3000.0, 3000.0)
-        agent_alt_m = self.fdm['position/h-sl-meters']
-        self.bandit_pos = np.array([range_from_wez * np.cos(bearing),
-                                    range_from_wez * np.sin(bearing),
-                                    agent_alt_m + rel_alt]) #due north, at 30000ft
-                                    #north,east,up(alt)
-        self.bandit_speed = 300.0
-        los_bandit = self.agent_pos() - self.bandit_pos
-        self.bandit_heading = np.arctan2(los_bandit[1], los_bandit[0])
 
         self.prev_heading = self.fdm['attitude/psi-rad']
         self.turned = 0.0   #accumulator
@@ -160,16 +174,13 @@ class F16Env(gym.Env):
         self.fdm['fcs/rudder-cmd-norm'] = self.rud_cmd
         self.fdm["gear/gear-cmd-norm"] = 0.0
         #run 
-        los = self.agent_pos() - self.bandit_pos
-        desire_enga = np.arctan2(los[1], los[0])
-        err = (desire_enga - self.bandit_heading + np.pi) % (2*np.pi) - np.pi 
         
         for _ in range(self.sim_steps_per_action):
             self.fdm.run()
         dt = self.fdm.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
-        self.bandit_pos += self.bandit_vel * dt
+
+        self.bandit.step(self.agent_pos(), dt)
         
-        #get obs
         obs = self._get_obs()
 
         self.curr_step += 1
