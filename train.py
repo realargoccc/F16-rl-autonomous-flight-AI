@@ -8,9 +8,9 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
 model_load = "ppo_f16_eleva_v2.0.6.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v2.0.8.zip" 
+model_path = "ppo_f16_eleva_v2.0.9.zip" 
 vecnorm_load = "vecnorm_eleva_v2.0.6.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v2.0.8.pkl"
+vecnorm_path = "vecnorm_eleva_v2.0.9.pkl"
 
 #sanity check 
 #env = F16Env()

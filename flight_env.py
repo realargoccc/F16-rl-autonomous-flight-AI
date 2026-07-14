@@ -19,17 +19,17 @@ class Bandit:
         rel_alt = np_random.uniform(-3000.0, 3000.0)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
         self.heading = np_random.uniform(-np.pi, np.pi)
-        self.vel = self.speed ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
+        self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
         self.hp = 1.0
 
     def step(self, agent_pos, dt):
-        los = self.agent_pos() - self.bandit_pos
+        los = agent_pos - self.pos
         desire_enga = np.arctan2(los[1], los[0])
-        err = (desire_enga - self.bandit_heading + np.pi) % (2*np.pi) - np.pi 
-        self.bandit_heading += np.clip(err, -np.radians(9.0) * dt, np.radians(9.0) * dt)
-        self.bandit_vel = self.bandit_speed * np.array([np.cos(self.bandit_heading), 
-                                                        np.sin(self.bandit_heading), 0.0])
-        self.bandit_pos += self.bandit_vel * dt
+        err = (desire_enga - self.heading + np.pi) % (2*np.pi) - np.pi 
+        self.heading += np.clip(err, -self.max_turn_rate * dt, self.max_turn_rate * dt)
+        self.vel = self.speed * np.array([np.cos(self.heading), 
+                                          np.sin(self.heading), 0.0])
+        self.pos += self.vel * dt
 
 
 class F16Env(gym.Env):
@@ -46,6 +46,7 @@ class F16Env(gym.Env):
         self.target_alt_ft = 10000.0
         self.sim_steps_per_action = 12
 
+        self.bandit = Bandit()
         #WEZ (Weapon Engagement Zone) configs
         nm_to_m = 1852.0
         self.rmax = 3.0 * nm_to_m  #
@@ -90,12 +91,11 @@ class F16Env(gym.Env):
         #bandit stats
         self.lat_agent = self.fdm['position/lat-geod-deg']
         self.lon_agent = self.fdm['position/long-gc-deg'] 
-        self.bandit_vel = np.array([0.0, 0.0, 0.0])   #due north, not changing altitude, 0 vertical speed
-                                    #north,east,up(vs)
 
         self.prev_heading = self.fdm['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
+        self.bandit.reset(self.np_random, self.fdm['position/h-sl-meters'])
         obs = self._get_obs()   #contains the 8 observation data from def _get_obs
         self.prev_range_err = self.range_err()
         self.prev_off_angle = self.off_angle
@@ -104,8 +104,7 @@ class F16Env(gym.Env):
         return obs, info
     
     def _get_obs(self):
-
-        relative_data = self.bandit_pos - self.agent_pos()
+        relative_data = self.bandit.pos - self.agent_pos()
         range = np.linalg.norm(relative_data)
         los_hat = relative_data / (range + 1e-9) #normalize range, leaving the pure direction 
         #3D cone
@@ -122,7 +121,7 @@ class F16Env(gym.Env):
         agent_vel = np.array([self.fdm['velocities/v-north-fps'] * 0.3048,
                               self.fdm['velocities/v-east-fps'] * 0.3048,
                               -self.fdm['velocities/v-down-fps'] * 0.3048])
-        closure = -np.dot(self.bandit_vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
+        closure = -np.dot(self.bandit.vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
         
         bandit_state = np.array([range, angle_off, relative_alt, closure], dtype=np.float32)
         agent_state = np.array(
