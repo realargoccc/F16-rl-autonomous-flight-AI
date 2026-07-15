@@ -31,7 +31,7 @@ raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
-    rel_alt0 = float(raw.bandit_pos[2] - raw.agent_pos()[2])    #the alt diff, if < 0, nose down
+    rel_alt0 = float(raw.bandit.pos[2] - raw.agent_pos()[2])    #the alt diff, if < 0, nose down
     kill = False
     start_time = raw.fdm.get_sim_time()
     total_reward = 0
@@ -89,9 +89,9 @@ def get_episode(model, vecnorm, raw, seed=None):
             "relative_alt_m" : float (obs[-2]),
             "in_wez": bool (raw.rmin <= raw.range <= raw.rmax),
             #bandit vs agent spatial track 
-            "bandit_n_m": float(raw.bandit_pos[0]),
-            "bandit_e_m": float(raw.bandit_pos[1]),
-            "bandit_up_m": float(raw.bandit_pos[2]),
+            "bandit_n_m": float(raw.bandit.pos[0]),
+            "bandit_e_m": float(raw.bandit.pos[1]),
+            "bandit_up_m": float(raw.bandit.pos[2]),
             "agent_n_m": float(raw.agent_pos()[0]),
             "agent_e_m": float(raw.agent_pos()[1]),
             "agent_up_m": float(raw.agent_pos()[2]),
