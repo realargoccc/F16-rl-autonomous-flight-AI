@@ -21,18 +21,17 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v2.0.9.pkl"
+vecnorm_path = "vecnorm_eleva_v2.1.0.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v2.0.9.zip")
+model = PPO.load("ppo_f16_eleva_v2.1.0.zip")
 raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
     rel_alt0 = float(raw.bandit.pos[2] - raw.agent_pos()[2])    #the alt diff, if < 0, nose down
-    kill = False
     start_time = raw.fdm.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
@@ -45,11 +44,9 @@ def get_episode(model, vecnorm, raw, seed=None):
         norm_obs = vecnorm.normalize_obs(obs)
         action, _ = model.predict(norm_obs, deterministic=True) #given current observation, what will the model do? / True means use model's preferred action
         obs, reward, terminated, truncated, info = raw.step(action)     #applies the action, and returns the five
-        if raw.range_err() == 0.0 and raw.off_angle < raw.seeker_horizontal_half:
-            kill = True
         min_range =  min(min_range, raw.range)
         min_off_angle = min(min_off_angle, raw.off_angle)
-        if raw.rmin <= raw.range <= raw.rmax:
+        if raw.gun_rmin <= raw.range <= raw.gun_rmax:
             steps_in_wez += 1
 
         total_reward += float(reward)
@@ -85,9 +82,9 @@ def get_episode(model, vecnorm, raw, seed=None):
             #intercept metrics
             "range_nm": raw.range / 1852.0,
             "off_angle_deg" : np.degrees(raw.off_angle),
-            "closure_ms": float(obs[-1]),
-            "relative_alt_m" : float (obs[-2]),
-            "in_wez": bool (raw.rmin <= raw.range <= raw.rmax),
+            "closure_ms": float(obs[-2]),
+            "relative_alt_m" : float (raw.bandit.pos[2] - raw.agent_pos()[2]),
+            "in_wez": bool (raw.gun_rmin <= raw.range <= raw.gun_rmax),
             #bandit vs agent spatial track 
             "bandit_n_m": float(raw.bandit.pos[0]),
             "bandit_e_m": float(raw.bandit.pos[1]),
@@ -108,26 +105,24 @@ def get_episode(model, vecnorm, raw, seed=None):
         )
         step += 1
     completed = bool(abs(raw.turned) >= 2 * np.pi)  #turned 360 degrees are consider completed
+    win = bool(raw.bandit.hp <= 0.0)
+    lose = bool(raw.agent_hp <= 0.0)
     summary = {
         "length": step,
         "total_reward": total_reward,
-        "completed": completed,
-        "turned_deg": float(np.degrees(abs(raw.turned))),
+        "win": win, 
+        "lose": lose,
+        "bandit_hp": float(raw.bandit.hp),
+        "agent_hp" : float(raw.agent_hp),
+        "rel_alt_init": rel_alt0,
         "rows": rows,
-        "min_range_nm": min_range / 1852.0,
-        "min_off_angle_deg": np.degrees(min_off_angle),
-        "steps_in_wez": steps_in_wez,
-        "reached_wez" : bool(min_range <= raw.rmax),
-        "kill": bool(kill),
-        "rel_alt_init": rel_alt0
     }
     return summary
 
 def episode_key(epi):
     #priority rank: reached wez, closest distance to wez, nose point direction, reward
-    return (int(epi["reached_wez"]),
-            -epi["min_range_nm"],
-            -epi["min_off_angle_deg"],
+    return (int(epi["win"]),
+            epi["agent_hp"] - epi["bandit_hp"],
             epi["total_reward"])
 
 def seed_sweep(model, vecnorm, raw, num_episodes=50):
@@ -136,16 +131,15 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
     low_n = 0       #how many of 50 are look down cases
 
     for epi in range(num_episodes):
-        episode = get_episode(model, vecnorm, raw, seed=1000+epi)
-        if episode["kill"]:
+        episode = [get_episode(model, vecnorm, raw, seed=1000+epi) for e in range(num_episodes)]
+        if episode["win"]:
             wins += 1
-        if episode["rel_alt_init"] < 0:
-            low_n += 1; low_wins += int(episode["kill"])
+        best = max(episode, key=episode_key)
         
         print(f"ep{epi:02d} relative alt: {episode['rel_alt_init']:+6.0f}meters | "
-              f"Kill ={str(episode['kill']):5} | min range: {episode['min_range_nm']:.2f}nm | "
-              f"min off angle:{episode['min_off_angle_deg']:3.0f}° | "
-              f"reward = {episode['total_reward']:6.1f} ")
+              f"win={str(episode['win']):5} | "
+              f"a_hp:{episode['agent_hp']:.2f} | b_hp:{episode['bandit_hp']:.2f} | "
+              f"reward={episode['total_reward']:7.1f} ")
     print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
           f"lower and win case: {low_wins} / {low_n}")
 

@@ -14,7 +14,7 @@ class Bandit:
         self.hp = 1.0
     
     def reset(self, np_random, agent_alt_m):
-        range_wez = np_random.uniform(3.5, 5.5) * 1852.0
+        range_wez = np_random.uniform(1.5, 2.5) * 1852.0
         bearing = np_random.uniform(-np.radians(120), np.radians(120))
         rel_alt = np_random.uniform(-3000.0, 3000.0)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
@@ -31,6 +31,11 @@ class Bandit:
                                           np.sin(self.heading), 0.0])
         self.pos += self.vel * dt
 
+    def off_angle_to(self, target_pos):
+        los = target_pos - self.pos
+        los_hat = los / (np.linalg.norm(los) + 1e-9)
+        nose = np.array([np.cos(self.heading), np.sin(self.heading), 0.0])
+        return float(np.arccos(np.clip(np.dot(nose, los_hat), -1.0, 1.0)))
 
 class F16Env(gym.Env):
     def __init__(self):
@@ -38,7 +43,7 @@ class F16Env(gym.Env):
         self.fdm.set_debug_level(0)             #remove banners of aircraft configurations (hundres loc)
         self.fdm.load_model('f16')              #load f16
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(21,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(23,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 300
@@ -48,13 +53,14 @@ class F16Env(gym.Env):
 
         self.bandit = Bandit()
         #WEZ (Weapon Engagement Zone) configs
-        nm_to_m = 1852.0
-        self.rmax = 3.0 * nm_to_m  #
-        self.rmin = 0.5 * nm_to_m
-        self.rne = 1.0 * nm_to_m   #no escape zone
-        self.seeker_vertical_half = np.radians(60)
-        self.seeker_horizontal_half = np.radians(60) 
+        self.max_hp = 1.0
+        self.gun_rmin = 450.0
+        self.gun_rmax = 900.0
+        self.gun_cone = np.radians(10)
+        self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
 
+
+        '''
         #Missile configs (aim9x)
         sound_mps = 300.0 #speed of sound (m/s, mach) universal number for 10k - 30k ft
         self.missile_speed_max = 3.0 * sound_mps #max speed m/s
@@ -62,7 +68,7 @@ class F16Env(gym.Env):
         self.lethal_radius = 7.0    #meters
         self.missile_count = 1   
         self.missile_max_g = 40.0 
-
+        '''
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
         self.fdm['ic/h-sl-ft'] = self.np_random.integers(18000, 25000) #randomize the starting position of the aircraft
@@ -96,8 +102,9 @@ class F16Env(gym.Env):
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
         self.bandit.reset(self.np_random, self.fdm['position/h-sl-meters'])
+        self.agent_hp = 1.0
         obs = self._get_obs()   #contains the 8 observation data from def _get_obs
-        self.prev_range_err = self.range_err()
+        #delete this self.prev_range_err = self.range_err()
         self.prev_off_angle = self.off_angle
 
         info = {}
@@ -107,6 +114,7 @@ class F16Env(gym.Env):
         relative_data = self.bandit.pos - self.agent_pos()
         range = np.linalg.norm(relative_data)
         los_hat = relative_data / (range + 1e-9) #normalize range, leaving the pure direction 
+        
         #3D cone
         pitch_angle = self.fdm['attitude/theta-rad']
         heading_angle = self.fdm['attitude/psi-rad']  #from north's perspective
@@ -123,7 +131,7 @@ class F16Env(gym.Env):
                               -self.fdm['velocities/v-down-fps'] * 0.3048])
         closure = -np.dot(self.bandit.vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
         
-        bandit_state = np.array([range, angle_off, relative_alt, closure], dtype=np.float32)
+        bandit_state = np.array([range, angle_off, relative_alt, closure, self.bandit.hp], dtype=np.float32)
         agent_state = np.array(
             [self.fdm['position/h-sl-meters'],          #altitude
             self.fdm['velocities/vc-fps'] * 0.3048,     #IAS
@@ -141,7 +149,8 @@ class F16Env(gym.Env):
             self.prev_elev,
             self.prev_aile,
             self.prev_rudder,
-            self.prev_throttle,    
+            self.prev_throttle,
+            self.agent_hp,    
             ], dtype = np.float32
         )
 
@@ -157,9 +166,6 @@ class F16Env(gym.Env):
         up = alt
 
         return np.array([north, east, up])        
-    
-    def range_err (self):
-        return max (0.0, self.range - self.rmax) + max(0.0, self.rmin - self.range)
 
     def step(self, action):
         a = 0.4
@@ -185,7 +191,6 @@ class F16Env(gym.Env):
         self.curr_step += 1
         alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
         crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0
-        terminated = crashed
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         curr_alt_ft = self.fdm['position/h-sl-ft']
         target_alt_ft = self.target_alt_ft
@@ -204,13 +209,7 @@ class F16Env(gym.Env):
         self.prev_heading = curr_heading
 
         #reward computations
-        range_error = self.range_err()
-        in_cone     = self.off_angle < self.seeker_horizontal_half   # 60°, line 30
-
-        reward  = -0.1                                         # per-step: commit fast  (NOT -=)
-        reward += 0.01 * (self.prev_range_err - range_error)   # close the 3D gap
-        self.prev_range_err = range_error                      # update AFTER, once
-
+        reward = -0.1
         reward += 1.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
         self.prev_off_angle = self.off_angle
 
@@ -218,10 +217,6 @@ class F16Env(gym.Env):
         gate = max(0.0, 1.0 - self.off_angle / np.radians(25.0))
         delta_action = np.asarray(action, dtype=np.float32) - self.prev_action 
         reward -= 0.5 * gate * float(np.sum(np.square(delta_action[1:4])))
-
-        if range_error == 0.0 and in_cone:                     # valid shot = band AND cone
-            reward += 100.0
-            terminated = True                                  # fire once, then done
         if crashed:
             reward -= 100.0                                    # ground / bank / over-g (L163)
 
@@ -236,6 +231,26 @@ class F16Env(gym.Env):
         #banking limitation
         if self.off_angle < np.radians(10):
             reward -= 0.005 * abs(curr_bank)
+
+        #wez agent's configs
+        in_wez = (self.off_angle < self.gun_cone and self.gun_rmin <= self.range <= self.gun_rmax)
+        if in_wez:
+            damage = dt * (self.gun_rmin / self.range)
+            self.bandit.hp -= damage
+            reward += self.k_damage * damage
+        #wez bandit's configs
+        bandit_offangle = self.bandit.off_angle_to(self.agent_pos())
+        if (bandit_offangle < self.gun_cone) and (self.gun_rmin <= self.range <= self.gun_rmax):
+            damage = dt * (self.gun_rmin / self.range)
+            self.agent_hp -= damage
+            reward -= self.k_damage * damage
+
+        win = bool(self.bandit.hp <= 0.0)
+        lose = bool(self.agent_hp <= 0) #knock it off - fights over
+        if win: reward += 100.0
+        if lose: reward -= 100.0
+        terminated = crashed or lose or win
+        
 
         # bookkeeping — feeds the observation
         self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd
@@ -264,7 +279,7 @@ if __name__ == "__main__":
             print(f"Step {i}: alt_diff from obs, reward = {reward:.3f}, cumulative = {total_reward:.1f}")
         
         if terminated or truncated:
-            print(f"Episode ended at step {i}, termianted = {terminated}, truncated = {truncated}, total reward: {total_reward:.1f}")
+            print(f"Episode ended at step {i}, terminated = {terminated}, truncated = {truncated}, total reward: {total_reward:.1f}")
             episode_rewards.append(total_reward)
             total_reward = 0.0
             obs, info = env.reset()
