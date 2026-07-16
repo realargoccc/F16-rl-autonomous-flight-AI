@@ -14,9 +14,9 @@ class Bandit:
         self.hp = 1.0
     
     def reset(self, np_random, agent_alt_m):
-        range_wez = np_random.uniform(1.5, 2.5) * 1852.0
-        bearing = np_random.uniform(-np.radians(120), np.radians(120))
-        rel_alt = np_random.uniform(-3000.0, 3000.0)
+        range_wez = np_random.uniform(600.0, 800.0) 
+        bearing = np_random.uniform(-np.radians(10), np.radians(10))
+        rel_alt = np_random.uniform(-150.0, 150.0)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
         self.heading = np_random.uniform(-np.pi, np.pi)
         self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
@@ -106,7 +106,7 @@ class F16Env(gym.Env):
         obs = self._get_obs()   #contains the 8 observation data from def _get_obs
         #delete this self.prev_range_err = self.range_err()
         self.prev_off_angle = self.off_angle
-
+        self.prev_gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
         info = {}
         return obs, info
     
@@ -192,18 +192,14 @@ class F16Env(gym.Env):
         alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
         crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0
         truncated = bool(self.curr_step >= self.max_episodes_steps)
-        curr_alt_ft = self.fdm['position/h-sl-ft']
-        target_alt_ft = self.target_alt_ft
         speed_knots = self.fdm['velocities/vc-fps'] * 0.592484    #speed in knots
         curr_throttle = self.fdm['fcs/throttle-cmd-norm']
         #Turning Policy Units
         curr_heading = self.fdm['attitude/psi-rad'] 
         curr_bank = self.fdm['attitude/phi-deg'] 
         curr_g = self.fdm['accelerations/Nz']
+        aim_cone = np.radians(25.0)
 
-        #Min radius turn units:
-        roll_rate = self.fdm['velocities/p-rad_sec']     
-        pitch_rate = self.fdm['velocities/q-rad_sec']  
         delta_turn = (curr_heading - self.prev_heading + np.pi) % (2*np.pi) - np.pi
         self.turned += delta_turn
         self.prev_heading = curr_heading
@@ -214,7 +210,7 @@ class F16Env(gym.Env):
         self.prev_off_angle = self.off_angle
 
         #gate control smoothness policy 
-        gate = max(0.0, 1.0 - self.off_angle / np.radians(25.0))
+        gate = max(0.0, 1.0 - self.off_angle / aim_cone)
         delta_action = np.asarray(action, dtype=np.float32) - self.prev_action 
         reward -= 0.5 * gate * float(np.sum(np.square(delta_action[1:4])))
         if crashed:
@@ -227,10 +223,6 @@ class F16Env(gym.Env):
             reward -= 0.03 * (speed_knots - 800)
         if abs(curr_g) > 7.0:
             reward -= 0.1 * (abs(curr_g) - 7.0)                # g back-off ramp
-        
-        #banking limitation
-        if self.off_angle < np.radians(10):
-            reward -= 0.005 * abs(curr_bank)
 
         #wez agent's configs
         in_wez = (self.off_angle < self.gun_cone and self.gun_rmin <= self.range <= self.gun_rmax)
@@ -245,12 +237,20 @@ class F16Env(gym.Env):
             self.agent_hp -= damage
             reward -= self.k_damage * damage
 
+        #closing gap policy 
+        gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
+        reward += 0.005 * (self.prev_gap - gap)
+        self.prev_gap = gap
+
+        #closing cone policy 
+        if self.off_angle < aim_cone:
+            reward += 0.1 * (1.0 - self.off_angle / aim_cone)
+
         win = bool(self.bandit.hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
         if win: reward += 100.0
         if lose: reward -= 100.0
         terminated = crashed or lose or win
-        
 
         # bookkeeping — feeds the observation
         self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd
