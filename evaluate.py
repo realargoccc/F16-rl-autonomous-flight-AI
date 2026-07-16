@@ -129,12 +129,16 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
     wins = 0        #total kills
     low_wins = 0    #how many look down ends up a kill
     low_n = 0       #how many of 50 are look down cases
-
+    episodes = []
     for epi in range(num_episodes):
-        episode = [get_episode(model, vecnorm, raw, seed=1000+epi) for e in range(num_episodes)]
+        episode = get_episode(model, vecnorm, raw, seed=1000+epi)
+
+        episodes.append(episode)
         if episode["win"]:
             wins += 1
-        best = max(episode, key=episode_key)
+        if episode["rel_alt_init"] < 0:
+            low_n += 1
+            low_wins += int(episode["win"])
         
         print(f"ep{epi:02d} relative alt: {episode['rel_alt_init']:+6.0f}meters | "
               f"win={str(episode['win']):5} | "
@@ -142,16 +146,18 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
               f"reward={episode['total_reward']:7.1f} ")
     print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
           f"lower and win case: {low_wins} / {low_n}")
+    
+    return episodes
 
-seed_sweep(model, vecnorm, raw, num_episodes=50)
-sample = get_episode(model, vecnorm, raw, seed=1000) #pick the best episode first
+episodes = seed_sweep(model, vecnorm, raw, num_episodes=50)
+best = max(episodes, key=episode_key)
 
-field_names = list(sample["rows"][0].keys())
+field_names = list(best["rows"][0].keys())
 with open ("eval_best.csv", "w", newline="") as f:     #open the csv 
     writer = csv.DictWriter(f, fieldnames=field_names)
     writer.writeheader()
     #writer.writerows(peak_episode["rows"]) Option A:
-    for row in sample["rows"]:        #Option B: I prefer B as it is detailed 
+    for row in best["rows"]:        #Option B: I prefer B as it is detailed 
         writer.writerow(row)
 
 #run code: python evaluate.py
