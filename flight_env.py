@@ -14,9 +14,9 @@ class Bandit:
         self.hp = 1.0
     
     def reset(self, np_random, agent_alt_m):
-        range_wez = np_random.uniform(600.0, 800.0) 
-        bearing = np_random.uniform(-np.radians(10), np.radians(10))
-        rel_alt = np_random.uniform(-150.0, 150.0)
+        range_wez = 700.0 #np_random.uniform(700.0, 800.0) 
+        bearing = 0.0 #np_random.uniform(-np.radians(5), np.radians(5))
+        rel_alt = -305.0 #np_random.uniform(-100.0, 100.0)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
         self.heading = np_random.uniform(-np.pi, np.pi)
         self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
@@ -56,7 +56,7 @@ class F16Env(gym.Env):
         self.max_hp = 1.0
         self.gun_rmin = 450.0
         self.gun_rmax = 900.0
-        self.gun_cone = np.radians(10)
+        self.gun_cone = np.radians(2)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
 
 
@@ -209,13 +209,14 @@ class F16Env(gym.Env):
         reward += 1.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
         self.prev_off_angle = self.off_angle
 
+        '''
         #gate control smoothness policy 
         gate = max(0.0, 1.0 - self.off_angle / aim_cone)
         delta_action = np.asarray(action, dtype=np.float32) - self.prev_action 
         reward -= 0.5 * gate * float(np.sum(np.square(delta_action[1:4])))
         if crashed:
             reward -= 100.0                                    # ground / bank / over-g (L163)
-
+        '''
         # constraint rails — flat interior, wall at the edge
         if speed_knots < 400:
             reward -= 0.03 * (400 - speed_knots)
