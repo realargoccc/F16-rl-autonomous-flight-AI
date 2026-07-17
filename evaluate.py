@@ -21,12 +21,12 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v2.1.1.pkl"
+vecnorm_path = "vecnorm_eleva_v2.1.2.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v2.1.1.zip")
+model = PPO.load("ppo_f16_eleva_v2.1.2.zip")
 raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):

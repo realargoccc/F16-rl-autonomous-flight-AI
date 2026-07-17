@@ -18,7 +18,7 @@ class Bandit:
         bearing = 0.0 #np_random.uniform(-np.radians(5), np.radians(5))
         rel_alt = -305.0 #np_random.uniform(-100.0, 100.0)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
-        self.heading = np_random.uniform(-np.pi, np.pi)
+        self.heading = np.pi #np_random.uniform(-np.pi, np.pi)
         self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
         self.hp = 1.0
 
@@ -206,17 +206,7 @@ class F16Env(gym.Env):
 
         #reward computations
         reward = -0.1
-        reward += 1.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
-        self.prev_off_angle = self.off_angle
 
-        '''
-        #gate control smoothness policy 
-        gate = max(0.0, 1.0 - self.off_angle / aim_cone)
-        delta_action = np.asarray(action, dtype=np.float32) - self.prev_action 
-        reward -= 0.5 * gate * float(np.sum(np.square(delta_action[1:4])))
-        if crashed:
-            reward -= 100.0                                    # ground / bank / over-g (L163)
-        '''
         # constraint rails — flat interior, wall at the edge
         if speed_knots < 400:
             reward -= 0.03 * (400 - speed_knots)
@@ -240,12 +230,14 @@ class F16Env(gym.Env):
 
         #closing gap policy 
         gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
-        reward += 0.005 * (self.prev_gap - gap)
+        reward += 0.1 * (self.prev_gap - gap)
         self.prev_gap = gap
 
         #closing cone policy 
-        if self.off_angle < aim_cone:
-            reward += 0.1 * (1.0 - self.off_angle / aim_cone)
+        reward += 0.1 * (1.0 - self.off_angle / aim_cone)
+
+        reward += 1.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
+        self.prev_off_angle = self.off_angle
 
         win = bool(self.bandit.hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
