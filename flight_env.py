@@ -10,15 +10,15 @@ ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 class Bandit:
     def __init__(self):
         self.speed = 300.0
-        self.max_turn_rate = np.radians(18.0)
+        self.max_turn_rate = np.radians(6.0)
         self.hp = 1.0
     
     def reset(self, np_random, agent_alt_m):
         range_wez = 700.0 #np_random.uniform(700.0, 800.0) 
         bearing = 0.0 #np_random.uniform(-np.radians(5), np.radians(5))
-        rel_alt = -305.0 #np_random.uniform(-100.0, 100.0)
+        rel_alt = -500.0 #np_random.uniform(-100.0, 100.0)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
-        self.heading = np.pi #np_random.uniform(-np.pi, np.pi)
+        self.heading = 0.0 #np_random.uniform(-np.pi, np.pi)
         self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
         self.hp = 1.0
 
@@ -46,7 +46,7 @@ class F16Env(gym.Env):
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(23,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
-        self.max_episodes_steps = 600
+        self.max_episodes_steps = 300
         self.curr_step = 0
         self.target_alt_ft = 10000.0
         self.sim_steps_per_action = 12
@@ -56,7 +56,7 @@ class F16Env(gym.Env):
         self.max_hp = 1.0
         self.gun_rmin = 450.0
         self.gun_rmax = 900.0
-        self.gun_cone = np.radians(2)
+        self.gun_cone = np.radians(7.5)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
 
 
@@ -241,6 +241,7 @@ class F16Env(gym.Env):
 
         win = bool(self.bandit.hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
+        if crashed: reward -= 100
         if win: reward += 100.0
         if lose: reward -= 100.0
         terminated = crashed or lose or win
