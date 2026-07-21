@@ -58,7 +58,7 @@ class F16Env(gym.Env):
         self.max_hp = 1.0
         self.gun_rmin = 450.0
         self.gun_rmax = 900.0
-        self.gun_cone = np.radians(5.0)
+        self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
 
 
@@ -194,7 +194,6 @@ class F16Env(gym.Env):
 
         self.curr_step += 1
         alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
-        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0 or curr_g > 9.0 or curr_g < -3.0
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         speed_knots = self.fdm['velocities/vc-fps'] * 0.592484    #speed in knots
         curr_throttle = self.fdm['fcs/throttle-cmd-norm']
@@ -203,6 +202,7 @@ class F16Env(gym.Env):
         curr_bank = self.fdm['attitude/phi-deg'] 
         curr_g = self.fdm['accelerations/Nz']
         aim_cone = np.radians(25.0)
+        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0 or curr_g > 9.0 or curr_g < -3.0
 
         delta_turn = (curr_heading - self.prev_heading + np.pi) % (2*np.pi) - np.pi
         self.turned += delta_turn
