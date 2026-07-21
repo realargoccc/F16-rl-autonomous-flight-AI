@@ -4,6 +4,7 @@ import numpy as np
 import jsbsim
 import os
 import random
+import math
 
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
@@ -16,7 +17,8 @@ class Bandit:
     def reset(self, np_random, agent_alt_m):
         range_wez = 700.0 #np_random.uniform(700.0, 800.0) 
         bearing = 0.0 #np_random.uniform(-np.radians(5), np.radians(5))
-        rel_alt = -500.0 #np_random.uniform(-100.0, 100.0)
+        rand_low, rand_high = np_random.choice([(-500.0, -250.0), (250.0, 500.0)])
+        rel_alt = np_random.uniform(rand_low, rand_high)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
         self.heading = 0.0 #np_random.uniform(-np.pi, np.pi)
         self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
@@ -43,7 +45,7 @@ class F16Env(gym.Env):
         self.fdm.set_debug_level(0)             #remove banners of aircraft configurations (hundres loc)
         self.fdm.load_model('f16')              #load f16
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(23,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(24,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 300
@@ -56,7 +58,7 @@ class F16Env(gym.Env):
         self.max_hp = 1.0
         self.gun_rmin = 450.0
         self.gun_rmax = 900.0
-        self.gun_cone = np.radians(7.5)
+        self.gun_cone = np.radians(5.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
 
 
@@ -130,8 +132,9 @@ class F16Env(gym.Env):
                               self.fdm['velocities/v-east-fps'] * 0.3048,
                               -self.fdm['velocities/v-down-fps'] * 0.3048])
         closure = -np.dot(self.bandit.vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
-        
-        bandit_state = np.array([range, angle_off, relative_alt, closure, self.bandit.hp], dtype=np.float32)
+        self.closure = float(closure)
+
+        bandit_state = np.array([range, angle_off, relative_alt, closure, self.bandit.hp, self.off_angle], dtype=np.float32)
         agent_state = np.array(
             [self.fdm['position/h-sl-meters'],          #altitude
             self.fdm['velocities/vc-fps'] * 0.3048,     #IAS
@@ -168,7 +171,7 @@ class F16Env(gym.Env):
         return np.array([north, east, up])        
 
     def step(self, action):
-        a = 0.4
+        a = 0.7
         self.elev_cmd = a * float(action[1]) + (1-a) * self.elev_cmd
         self.aile_cmd = a * float(action[2]) + (1-a) * self.aile_cmd
         self.rud_cmd = a * float(action[3]) + (1-a) * self.rud_cmd
@@ -208,12 +211,14 @@ class F16Env(gym.Env):
         reward = -0.1
 
         # constraint rails — flat interior, wall at the edge
-        if speed_knots < 400:
-            reward -= 0.03 * (400 - speed_knots)
+        if speed_knots < 350:
+            reward -= 0.01 * (350 - speed_knots)
         elif speed_knots > 800:
-            reward -= 0.03 * (speed_knots - 800)
-        if abs(curr_g) > 7.0:
-            reward -= 0.1 * (abs(curr_g) - 7.0)                # g back-off ramp
+            reward -= 0.01 * (speed_knots - 800)
+        if abs(curr_g) > 8.5:
+            reward -= 0.1 * (abs(curr_g) - 8.5)                # g back-off ramp
+
+        reward -= 0.02 * float(np.sum((np.asarray(action[1:4]) - self.prev_action[1:4]) ** 2))
 
         #wez agent's configs
         in_wez = (self.off_angle < self.gun_cone and self.gun_rmin <= self.range <= self.gun_rmax)
@@ -233,11 +238,16 @@ class F16Env(gym.Env):
         reward += 0.1 * (self.prev_gap - gap)
         self.prev_gap = gap
 
-        #closing cone policy 
-        reward += 0.1 * (1.0 - self.off_angle / aim_cone)
+        #closure policy
+        if self.range > self.gun_rmax:
+            reward += 0.01 * self.closure
+        elif self.range < self.gun_rmin:
+            reward -= 0.02 * abs(self.closure)
 
-        reward += 1.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
+        #closing cone policy 
+        reward += 3.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
         self.prev_off_angle = self.off_angle
+        reward += 0.4 * math.exp(-(self.off_angle / aim_cone) ** 2)
 
         win = bool(self.bandit.hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over

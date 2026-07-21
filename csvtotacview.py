@@ -2,7 +2,7 @@ import csv
 import math
 
 csv_path = "eval_best.csv"
-acmi_path = "f16_intercept_v2.1.6.acmi"
+acmi_path = "f16_intercept_v2.1.9.acmi"
 
 #nellis afb lat and lon (fight location)
 ref_lat = 36.20
@@ -51,7 +51,7 @@ def main():
 
         if i == 0:
             output.append(f"{agent_ID},T={T},Name=F-16C, "
-                          f"Color=Blue,Callsign=Sheppherd,Pilot=V2.0.7")
+                          f"Color=Blue,Callsign=Sheppherd,Pilot=V2.1.9")
         else:
             output.append(f"{agent_ID},T={T}")
 
