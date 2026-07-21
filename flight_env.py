@@ -95,6 +95,7 @@ class F16Env(gym.Env):
         self.aile_cmd = 0.0
         self.rud_cmd = 0.0
         self.prev_action = np.zeros(4, dtype=np.float32) #currently 4 actions in action space
+        self.prev_prev_action = np.zeros(4, dtype=np.float32)
 
         #bandit stats
         self.lat_agent = self.fdm['position/lat-geod-deg']
@@ -193,7 +194,7 @@ class F16Env(gym.Env):
 
         self.curr_step += 1
         alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
-        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0
+        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0 or curr_g > 9.0 or curr_g < -3.0
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         speed_knots = self.fdm['velocities/vc-fps'] * 0.592484    #speed in knots
         curr_throttle = self.fdm['fcs/throttle-cmd-norm']
@@ -215,10 +216,19 @@ class F16Env(gym.Env):
             reward -= 0.01 * (350 - speed_knots)
         elif speed_knots > 800:
             reward -= 0.01 * (speed_knots - 800)
-        if abs(curr_g) > 8.5:
-            reward -= 0.1 * (abs(curr_g) - 8.5)                # g back-off ramp
+        if curr_g > 8.5:
+            reward -= 0.1 * (curr_g - 8.5)                # g back-off ramp
+        elif curr_g < -2.5:
+            reward -= 0.1 * (-2.5 - curr_g)
 
-        reward -= 0.02 * float(np.sum((np.asarray(action[1:4]) - self.prev_action[1:4]) ** 2))
+        #punish huge oscillation 
+        a_t = np.asarray(action[1:4], dtype = np.float32)
+        a_t1 = self.prev_action[1:4]
+        a_t2 = self.prev_prev_action[1:4]
+
+        reward -= 0.02 * float(np.sum((a_t - a_t1) ** 2))   #rate punishement (一阶差)
+        reward -= 0.15 * float(np.sum((a_t - 2.0 * a_t1 + a_t2) ** 2))  #curvature punishment (二阶差)
+        reward -= 0.01 * float(np.sum(a_t ** 2))                       #magnitude 
 
         #wez agent's configs
         in_wez = (self.off_angle < self.gun_cone and self.gun_rmin <= self.range <= self.gun_rmax)
@@ -258,6 +268,7 @@ class F16Env(gym.Env):
 
         # bookkeeping — feeds the observation
         self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd
+        self.prev_prev_action = self.prev_action.copy()
         self.prev_action = np.array(action, dtype=np.float32)
         self.prev_rudder, self.prev_throttle = self.rud_cmd,  action[0]
         
