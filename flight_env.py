@@ -45,7 +45,7 @@ class F16Env(gym.Env):
         self.fdm.set_debug_level(0)             #remove banners of aircraft configurations (hundres loc)
         self.fdm.load_model('f16')              #load f16
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(24,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(26,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 300
@@ -135,7 +135,9 @@ class F16Env(gym.Env):
         closure = -np.dot(self.bandit.vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
         self.closure = float(closure)
 
-        bandit_state = np.array([range, angle_off, relative_alt, closure, self.bandit.hp, self.off_angle], dtype=np.float32)
+        rel_vel = (self.bandit.vel - agent_vel) / 300
+        bandit_state = np.array([range, angle_off, relative_alt, closure, self.bandit.hp, self.off_angle, rel_vel[0]
+                                 , rel_vel[1]], dtype=np.float32)
         agent_state = np.array(
             [self.fdm['position/h-sl-meters'],          #altitude
             self.fdm['velocities/vc-fps'] * 0.3048,     #IAS
