@@ -33,7 +33,7 @@ class Bandit:
                                           np.sin(self.heading), 0.0])
         self.pos += self.vel * dt
 
-    def off_angle_to(self, target_pos):
+    def boresight_to(self, target_pos):
         los = target_pos - self.pos
         los_hat = los / (np.linalg.norm(los) + 1e-9)
         nose = np.array([np.cos(self.heading), np.sin(self.heading), 0.0])
@@ -45,7 +45,7 @@ class F16Env(gym.Env):
         self.fdm.set_debug_level(0)             #remove banners of aircraft configurations (hundres loc)
         self.fdm.load_model('f16')              #load f16
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(24,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(26,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 300
@@ -106,13 +106,15 @@ class F16Env(gym.Env):
         self.prev_pitch_rate = 0.0
         self.bandit.reset(self.np_random, self.fdm['position/h-sl-meters'])
         self.agent_hp = 1.0
+        self.prev_obs_boresight_az = None
+        self.prev_obs_boresight = None
         obs = self._get_obs()   #contains the 8 observation data from def _get_obs
         #delete this self.prev_range_err = self.range_err()
-        self.prev_off_angle = self.off_angle
+        self.prev_boresight = self.boresight
         self.prev_gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
         info = {}
         return obs, info
-    
+        
     def _get_obs(self):
         relative_data = self.bandit.pos - self.agent_pos()
         range = np.linalg.norm(relative_data)
@@ -124,19 +126,36 @@ class F16Env(gym.Env):
         nose_vec = np.array([np.cos(pitch_angle) * np.cos(heading_angle),   #North
                              np.cos(pitch_angle) * np.sin(heading_angle),   #East
                              np.sin(pitch_angle)])                          #Up
-        self.range = float(range)
+        self.range = float(range) 
         bearing = np.arctan2(relative_data[1], relative_data[0]) #Absolute bearing: from north 
-        angle_off = (bearing - self.fdm['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
-        self.off_angle = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
+        boresight_az = (bearing - self.fdm['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
+        self.boresight = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
         relative_alt = relative_data[2]
         agent_vel = np.array([self.fdm['velocities/v-north-fps'] * 0.3048,
                               self.fdm['velocities/v-east-fps'] * 0.3048,
                               -self.fdm['velocities/v-down-fps'] * 0.3048])
         closure = -np.dot(self.bandit.vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
         self.closure = float(closure)
+        self.boresight_az = float(boresight_az) #for eval logging
+
+        #LOS rate - lead pursuit logging
+        if self.prev_obs_boresight_az is None: # if no angle are observed by agent
+            self.prev_obs_boresight_az = boresight_az 
+            self.prev_obs_boresight = self.boresight
+        
+        dt_obs = self.fdm.get_delta_t() * self.sim_steps_per_action
+        scale = dt_obs * np.radians(30.0)
+        d_boresight_az = (boresight_az - self.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
+
+        boresight_az_rate = d_boresight_az / scale
+        boresight_rate = (self.boresight - self.prev_obs_boresight) / scale
+
+        self.prev_obs_boresight_az = float(boresight_az)
+        self.prev_obs_boresight    = float(self.boresight)
 
         rel_vel = (self.bandit.vel - agent_vel) / 300
-        bandit_state = np.array([range, angle_off, relative_alt, closure, self.bandit.hp, self.off_angle], dtype=np.float32)
+        bandit_state = np.array([range, boresight_az, relative_alt, closure, self.bandit.hp, self.boresight, 
+                                 boresight_az_rate, boresight_rate], dtype=np.float32)
         agent_state = np.array(
             [self.fdm['position/h-sl-meters'],          #altitude
             self.fdm['velocities/vc-fps'] * 0.3048,     #IAS
@@ -232,14 +251,14 @@ class F16Env(gym.Env):
         reward -= 0.01 * float(np.sum(a_t ** 2))                       #magnitude 
 
         #wez agent's configs
-        in_wez = (self.off_angle < self.gun_cone and self.gun_rmin <= self.range <= self.gun_rmax)
+        in_wez = (self.boresight < self.gun_cone and self.gun_rmin <= self.range <= self.gun_rmax)
         if in_wez:
             damage = dt * (self.gun_rmin / self.range)
             self.bandit.hp -= damage
             reward += self.k_damage * damage
         #wez bandit's configs
-        bandit_offangle = self.bandit.off_angle_to(self.agent_pos())
-        if (bandit_offangle < self.gun_cone) and (self.gun_rmin <= self.range <= self.gun_rmax):
+        bandit_boresight = self.bandit.boresight_to(self.agent_pos())
+        if (bandit_boresight < self.gun_cone) and (self.gun_rmin <= self.range <= self.gun_rmax):
             damage = dt * (self.gun_rmin / self.range)
             self.agent_hp -= damage
             reward -= self.k_damage * damage
@@ -256,9 +275,9 @@ class F16Env(gym.Env):
             reward -= 0.02 * abs(self.closure)
 
         #closing cone policy 
-        reward += 3.0 * (self.prev_off_angle - self.off_angle) # cone gradient — inert dead-ahead, matters off-boresight
-        self.prev_off_angle = self.off_angle
-        reward += 0.4 * math.exp(-(self.off_angle / aim_cone) ** 2)
+        reward += 3.0 * (self.prev_boresight - self.boresight) # cone gradient — inert dead-ahead, matters off-boresight
+        self.prev_boresight = self.boresight
+        reward += 0.4 * math.exp(-(self.boresight / aim_cone) ** 2)
 
         win = bool(self.bandit.hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over

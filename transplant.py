@@ -4,15 +4,31 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from flight_env import F16Env
 import os, time, torch
 
+"""
+Grow observations space without retraining fresh
+
+WHY: Adding more observations cut off the oppourtunity to train warm from a good behavioring agent, causing delay and waste of computaion worth
+of hours
+
+HOW: only 2 tensors rely on obs size(policy net + value net first layers)
+     copy every other tensor as is, for the 2 tensors, past ethe trained weights into the left columns and leave the new columns at zeros
+     zero weights -> new inputs contribute nothing -> the new policy computes the exact same function as the old one. 
+     No performance loss, then training grows the weights off zero only if the new inputs help.
+
+Only run once per obs dim size change
+
+old_model must be the latest trained model 
+"""
+
 old_model = "ppo_f16_eleva_v2.3.0.zip"
 old_vec = "vecnorm_eleva_v2.3.0.pkl"
 new_model = "ppo_f16_eleva_v2.3.1.zip"
 new_vec = "vecnorm_eleva_v2.3.1.pkl"
 
-old_dim = 24, new_dim = 40
+old_dim, new_dim = 24, 40
 
-assert os.path.exist(old_model), f"missing {old_model}"
-assert os.path.exist(old_vec),   f"missing {old_vec}"
+assert os.path.exists(old_model), f"missing {old_model}"
+assert os.path.exists(old_vec),   f"missing {old_vec}"
 
 old_poli = PPO.load(old_model, device = "cpu").policy.state_dict() #old trained policy 
 
@@ -51,7 +67,7 @@ with open(old_vec, "rb") as f:
     old_vn = pickle.load(f)
 
 pad = new_dim - old_dim
-env.obs_rms.mean = np.concatenate([old_vn.obsrms.mean, np.zeros(pad)])
-env.obs_rms.var = np.concatenate([old_vn.obsrms.var, np.ones(pad)])
+env.obs_rms.mean = np.concatenate([old_vn.obs_rms.mean, np.zeros(pad)])
+env.obs_rms.var = np.concatenate([old_vn.obs_rms.var, np.ones(pad)])
 env.obs_rms.count = old_vn.obs_rms.count
 env.save(new_vec)

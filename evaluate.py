@@ -45,7 +45,7 @@ def get_episode(model, vecnorm, raw, seed=None):
         action, _ = model.predict(norm_obs, deterministic=True) #given current observation, what will the model do? / True means use model's preferred action
         obs, reward, terminated, truncated, info = raw.step(action)     #applies the action, and returns the five
         min_range =  min(min_range, raw.range)
-        min_off_angle = min(min_off_angle, raw.off_angle)
+        min_off_angle = min(min_off_angle, raw.boresight)
         if raw.gun_rmin <= raw.range <= raw.gun_rmax:
             steps_in_wez += 1
 
@@ -81,7 +81,7 @@ def get_episode(model, vecnorm, raw, seed=None):
             "alt_agl_m": raw.fdm['position/h-agl-ft'] * 0.3048,
             #intercept metrics
             "range_nm": raw.range / 1852.0,
-            "off_angle_deg" : np.degrees(raw.off_angle),
+            "boresight_az_deg" : np.degrees(raw.boresight_az),
             "closure_ms": float(obs[-2]),
             "relative_alt_m" : float (raw.bandit.pos[2] - raw.agent_pos()[2]),
             "in_wez": bool (raw.gun_rmin <= raw.range <= raw.gun_rmax),
