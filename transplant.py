@@ -25,19 +25,20 @@ old_vec = "vecnorm_eleva_v2.3.0.pkl"
 new_model = "ppo_f16_eleva_v2.3.1.zip"
 new_vec = "vecnorm_eleva_v2.3.1.pkl"
 
-old_dim, new_dim = 24, 40
+old_dim, new_dim = 24, 26
 
 assert os.path.exists(old_model), f"missing {old_model}"
 assert os.path.exists(old_vec),   f"missing {old_vec}"
 
-old_poli = PPO.load(old_model, device = "cpu").policy.state_dict() #old trained policy 
+old_ppo = PPO.load(old_model, device="cpu")
+old_poli = old_ppo.policy.state_dict() 
 
 #fresh policy with new_dim
 env = VecNormalize(DummyVecEnv([lambda: F16Env()]), norm_obs=True, norm_reward=False, clip_obs=10.0)
 
 assert env.observation_space.shape == (new_dim, ), f"obs dim doesn't match, should be {new_dim}"
 
-new = PPO("MlpPolicy", env, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 0.01, verbose=0)
+new = PPO("MlpPolicy", env, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 0.01, verbose=0, device="cpu")
 
 new_poli = new.policy.state_dict()
 
@@ -60,6 +61,10 @@ for k in new_poli:
                            f"old {tuple(old_poli[k].shape)} vs new {tuple(new_poli[k].shape)}")
 assert widened >= 2, f"expected >= 2 widened layers, but have {widened}"
 new.policy.load_state_dict(new_poli)
+with torch.no_grad():
+    new.policy.log_std.clamp_(max=-0.7)
+
+new.num_timesteps = old_ppo.num_timesteps
 new.save(new_model)
 
 #extend vecnormalize stats
@@ -71,3 +76,4 @@ env.obs_rms.mean = np.concatenate([old_vn.obs_rms.mean, np.zeros(pad)])
 env.obs_rms.var = np.concatenate([old_vn.obs_rms.var, np.ones(pad)])
 env.obs_rms.count = old_vn.obs_rms.count
 env.save(new_vec)
+

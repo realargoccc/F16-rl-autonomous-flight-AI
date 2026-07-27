@@ -21,13 +21,14 @@ class Bandit:
         rel_alt = np_random.uniform(rand_low, rand_high)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
         self.heading = 0.0 #np_random.uniform(-np.pi, np.pi)
+        self.break_dir = float(np_random.choice([-1.0, 1.0]))
         self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
         self.hp = 1.0
 
     def step(self, agent_pos, dt):
         los = agent_pos - self.pos
-        desire_enga = np.arctan2(los[1], los[0]) + np.pi 
-        err = (desire_enga - self.heading + np.pi) % (2*np.pi) - np.pi 
+        desire_enga = np.arctan2(los[1], los[0]) + self.break_dir * np.pi / 2
+        err = (desire_enga - self.heading + np.pi) % (2*np.pi) - np.pi
         self.heading += np.clip(err, -self.max_turn_rate * dt, self.max_turn_rate * dt)
         self.vel = self.speed * np.array([np.cos(self.heading), 
                                           np.sin(self.heading), 0.0])
