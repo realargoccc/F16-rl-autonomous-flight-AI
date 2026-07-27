@@ -214,7 +214,7 @@ class F16Env(gym.Env):
         obs = self._get_obs()
 
         self.curr_step += 1
-        alt_agl_m = self.fdm['position/h-sl-ft'] * 0.3048
+        alt_agl_m = self.fdm['position/h-agl-ft'] * 0.3048
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         speed_knots = self.fdm['velocities/vc-fps'] * 0.592484    #speed in knots
         curr_throttle = self.fdm['fcs/throttle-cmd-norm']
@@ -239,8 +239,8 @@ class F16Env(gym.Env):
             reward -= 0.01 * (speed_knots - 800)
         if curr_g > 8.5:
             reward -= 0.5 * (curr_g - 8.5)**2       #g back-off ramp
-        elif curr_g < -2.5:
-            reward -= 0.1 * (-2.5 - curr_g)**2
+        elif curr_g < -1.0:
+            reward -= 0.5 * (-1.0 - curr_g)**2
 
         #punish huge oscillation 
         a_t = np.asarray(action[1:4], dtype = np.float32)
