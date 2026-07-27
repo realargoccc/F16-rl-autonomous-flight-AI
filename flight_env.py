@@ -223,7 +223,7 @@ class F16Env(gym.Env):
         curr_bank = self.fdm['attitude/phi-deg'] 
         curr_g = self.fdm['accelerations/Nz']
         aim_cone = np.radians(25.0)
-        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 9.0 or curr_g > 9.0 or curr_g < -3.0
+        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 13.0 or abs(curr_g) > 13.0
 
         delta_turn = (curr_heading - self.prev_heading + np.pi) % (2*np.pi) - np.pi
         self.turned += delta_turn
@@ -238,9 +238,9 @@ class F16Env(gym.Env):
         elif speed_knots > 800:
             reward -= 0.01 * (speed_knots - 800)
         if curr_g > 8.5:
-            reward -= 0.1 * (curr_g - 8.5)                # g back-off ramp
+            reward -= 0.5 * (curr_g - 8.5)**2       #g back-off ramp
         elif curr_g < -2.5:
-            reward -= 0.1 * (-2.5 - curr_g)
+            reward -= 0.1 * (-2.5 - curr_g)**2
 
         #punish huge oscillation 
         a_t = np.asarray(action[1:4], dtype = np.float32)
