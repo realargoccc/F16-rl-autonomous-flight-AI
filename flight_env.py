@@ -43,15 +43,17 @@ class Bandit:
         self.pitch += np.clip(pitch_err, -self.max_pitch_rate * dt, self.max_pitch_rate * dt)
 
         self.speed += (-9.81 * np.sin(self.pitch) + 0.05 * (self.nominal_speed - self.speed)) * dt
-        self.speed = float(np.clip(250.0, 450.0))
-        self.vel = self.speed * np.array([np.cos(self.heading) * np.cos(self.heading), 
-                                          np.sin(self.heading) * np.sin(self.heading), 
+        self.speed = float(np.clip(self.speed, 250.0, 450.0))
+        self.vel = self.speed * np.array([np.cos(self.pitch) * np.cos(self.heading), 
+                                          np.cos(self.pitch) * np.sin(self.heading), 
                                           np.sin(self.pitch)])
         self.pos += self.vel * dt
     def boresight_to(self, target_pos):
         los = target_pos - self.pos
         los_hat = los / (np.linalg.norm(los) + 1e-9)
-        nose = np.array([np.cos(self.heading), np.sin(self.heading), 0.0])
+        nose = np.array([np.cos(self.pitch) * np.cos(self.heading), 
+                         np.cos(self.pitch) * np.sin(self.heading), 
+                         np.sin(self.pitch)])
         return float(np.arccos(np.clip(np.dot(nose, los_hat), -1.0, 1.0)))
 
 class F16Env(gym.Env):
