@@ -36,12 +36,18 @@ class Bandit:
     def step(self, agent_pos, dt):
         los = agent_pos - self.pos
         desire_enga = np.arctan2(los[1], los[0]) + self.turn_offset
-        err = (desire_enga - self.heading + np.pi) % (2*np.pi) - np.pi
-        self.heading += np.clip(err, -self.max_turn_rate * dt, self.max_turn_rate * dt)
-        self.vel = self.speed * np.array([np.cos(self.heading), 
-                                          np.sin(self.heading), 0.0])
-        self.pos += self.vel * dt
+        heading_err = (desire_enga - self.heading + np.pi) % (2*np.pi) - np.pi
+        self.heading += np.clip(heading_err, -self.max_turn_rate * dt, self.max_turn_rate * dt)
+        
+        pitch_err = self.pitch_target - self.pitch
+        self.pitch += np.clip(pitch_err, -self.max_pitch_rate * dt, self.max_pitch_rate * dt)
 
+        self.speed += (-9.81 * np.sin(self.pitch) + 0.05 * (self.nominal_speed - self.speed)) * dt
+        self.speed = float(np.clip(250.0, 450.0))
+        self.vel = self.speed * np.array([np.cos(self.heading) * np.cos(self.heading), 
+                                          np.sin(self.heading) * np.sin(self.heading), 
+                                          np.sin(self.pitch)])
+        self.pos += self.vel * dt
     def boresight_to(self, target_pos):
         los = target_pos - self.pos
         los_hat = los / (np.linalg.norm(los) + 1e-9)
