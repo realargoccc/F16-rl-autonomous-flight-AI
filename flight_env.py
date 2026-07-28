@@ -11,23 +11,31 @@ ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 class Bandit:
     def __init__(self):
         self.speed = 300.0
+        self.nominal_speed = 300.0
         self.max_turn_rate = np.radians(10.0)
+        self.max_pitch_rate = np.radians(5.0)
         self.hp = 1.0
     
     def reset(self, np_random, agent_alt_m):
         range_wez = 700.0 #np_random.uniform(700.0, 800.0) 
-        bearing = 0.0 #np_random.uniform(-np.radians(5), np.radians(5))
+        bearing = 0.0 #np_random.unifordm(-np.radians(5), np.radians(5))
+        self.pitch = 0.0
+        self.pitch_target = float(np_random.choice([-1.0, 0.0, 1.0])) * np.radians(15.0)
+        self.speed = self.nominal_speed
         rand_low, rand_high = np_random.choice([(-500.0, -250.0), (250.0, 500.0)])
         rel_alt = np_random.uniform(rand_low, rand_high)
         self.pos = np.array([range_wez * np.cos(bearing), range_wez * np.sin(bearing), agent_alt_m + rel_alt])
         self.heading = 0.0 #np_random.uniform(-np.pi, np.pi)
-        self.break_dir = float(np_random.choice([-1.0, 1.0]))
+        if np_random.random() < 0.35:
+            self.turn_offset = np.pi    #extend or run away 
+        else:
+            self.turn_offset = float(np_random.choice([-1.0, 1.0])) * np.pi/2 # beam, left or right
         self.vel = self.speed * ( np.array([np.cos(self.heading), np.sin(self.heading), 0.0]))
         self.hp = 1.0
 
     def step(self, agent_pos, dt):
         los = agent_pos - self.pos
-        desire_enga = np.arctan2(los[1], los[0]) + self.break_dir * np.pi / 2
+        desire_enga = np.arctan2(los[1], los[0]) + self.turn_offset
         err = (desire_enga - self.heading + np.pi) % (2*np.pi) - np.pi
         self.heading += np.clip(err, -self.max_turn_rate * dt, self.max_turn_rate * dt)
         self.vel = self.speed * np.array([np.cos(self.heading), 

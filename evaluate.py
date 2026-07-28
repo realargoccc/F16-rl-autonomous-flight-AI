@@ -21,17 +21,18 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v2.3.7.pkl"
+vecnorm_path = "vecnorm_eleva_v2.3.8.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v2.3.7.zip")
+model = PPO.load("ppo_f16_eleva_v2.3.8.zip")
 raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
     rel_alt0 = float(raw.bandit.pos[2] - raw.agent_pos()[2])    #the alt diff, if < 0, nose down
+    turn_offset = float(raw.bandit.turn_offset)
     start_time = raw.fdm.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
@@ -116,6 +117,7 @@ def get_episode(model, vecnorm, raw, seed=None):
         "agent_hp" : float(raw.agent_hp),
         "rel_alt_init": rel_alt0,
         "rows": rows,
+        "turn_offset": turn_offset,
     }
     return summary
 
@@ -144,6 +146,17 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
               f"win={str(episode['win']):5} | "
               f"a_hp:{episode['agent_hp']:.2f} | b_hp:{episode['bandit_hp']:.2f} | "
               f"reward={episode['total_reward']:7.1f} ")
+
+    buckets = {"flee":[0,0], "beam +": [0,0], "beam -": [0,0]}
+    for e in episodes:
+        if e["turn_offset"] > 2.0: name = "flee"
+        elif e["turn_offset"] > 0: name = "beam +"
+        else: name = "beam -"
+        buckets[name][0] += int(e["win"]); buckets[name][1] += 1
+    for name, (w, n) in buckets.items():
+        if n:
+            print(f" {name:>7}: {w}/{n} = {w/n:.0%}")
+
     print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
           f"lower and win case: {low_wins} / {low_n}")
     
