@@ -160,7 +160,7 @@ class F16Env(gym.Env):
         self.agent_hp = 1.0
         self.prev_obs_boresight_az = None
         self.prev_obs_boresight = None
-        obs = self._get_obs()   #contains the 8 observation data from def _get_obs
+        obs = self._get_obs(self.me, self.bandit.pos, self.bandit.vel, self.bandit.hp)  #contains the 8 observation data from def _get_obs
         #delete this self.prev_range_err = self.range_err()
         self.prev_boresight = self.boresight
         self.prev_gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
@@ -168,25 +168,25 @@ class F16Env(gym.Env):
         return obs, info
         
     def _get_obs(self, me, foe_pos, foe_vel, foe_hp):
-        relative_data = self.bandit.pos - self.me.pos()
+        relative_data = foe_pos - me.pos()
         range = np.linalg.norm(relative_data)
         los_hat = relative_data / (range + 1e-9) #normalize range, leaving the pure direction 
         
         #3D cone
-        pitch_angle = self.me['attitude/theta-rad']
-        heading_angle = self.me['attitude/psi-rad']  #from north's perspective
+        pitch_angle = me['attitude/theta-rad']
+        heading_angle = me['attitude/psi-rad']  #from north's perspective
         nose_vec = np.array([np.cos(pitch_angle) * np.cos(heading_angle),   #North
                              np.cos(pitch_angle) * np.sin(heading_angle),   #East
                              np.sin(pitch_angle)])                          #Up
         self.range = float(range) 
         bearing = np.arctan2(relative_data[1], relative_data[0]) #Absolute bearing: from north 
-        boresight_az = (bearing - self.me['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
+        boresight_az = (bearing - me['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
         self.boresight = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
         relative_alt = relative_data[2]
-        agent_vel = np.array([self.me['velocities/v-north-fps'] * 0.3048,
-                              self.me['velocities/v-east-fps'] * 0.3048,
-                              -self.me['velocities/v-down-fps'] * 0.3048])
-        closure = -np.dot(self.bandit.vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
+        agent_vel = np.array([me['velocities/v-north-fps'] * 0.3048,
+                              me['velocities/v-east-fps'] * 0.3048,
+                              -me['velocities/v-down-fps'] * 0.3048])
+        closure = -np.dot(foe_vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
         self.closure = float(closure)
         self.boresight_az = float(boresight_az) #for eval logging
 
@@ -195,7 +195,7 @@ class F16Env(gym.Env):
             self.prev_obs_boresight_az = boresight_az 
             self.prev_obs_boresight = self.boresight
         
-        dt_obs = self.me.get_delta_t() * self.sim_steps_per_action
+        dt_obs = me.get_delta_t() * self.sim_steps_per_action
         scale = dt_obs * np.radians(30.0)
         d_boresight_az = (boresight_az - self.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
 
@@ -205,23 +205,23 @@ class F16Env(gym.Env):
         self.prev_obs_boresight_az = float(boresight_az)
         self.prev_obs_boresight    = float(self.boresight)
 
-        rel_vel = (self.bandit.vel - agent_vel) / 300
-        bandit_state = np.array([range, boresight_az, relative_alt, closure, self.bandit.hp, self.boresight, 
+        rel_vel = (foe_vel - agent_vel) / 300
+        bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, self.boresight, 
                                  boresight_az_rate, boresight_rate], dtype=np.float32)
         agent_state = np.array(
-            [self.me['position/h-sl-meters'],          #altitude
-            self.me['velocities/vc-fps'] * 0.3048,     #IAS
-            self.me['attitude/theta-rad'],             #pitch
-            self.me['velocities/q-rad_sec'],           #pitch rate
-            self.me['velocities/h-dot-fps'] * 0.3048,  #vertical speed
-            self.me['aero/alpha-deg'],                 #aoa-deg
-            self.me['attitude/phi-rad'],               #bank angle in radians
-            self.me['velocities/p-rad_sec'],           #roll rate
-            self.me['propulsion/engine/n1'],           #engine rpm (low lag responder to throttle)
-            self.me['accelerations/Nz'],               #g_load
-            self.me['velocities/mach'],                #corner speed monitor
-            self.me['velocities/r-rad_sec'],           #yaw rate
-            self.me['aero/beta-deg'],                  #sideslip (yaw angle)
+            [me['position/h-sl-meters'],          #altitude
+            me['velocities/vc-fps'] * 0.3048,     #IAS
+            me['attitude/theta-rad'],             #pitch
+            me['velocities/q-rad_sec'],           #pitch rate
+            me['velocities/h-dot-fps'] * 0.3048,  #vertical speed
+            me['aero/alpha-deg'],                 #aoa-deg
+            me['attitude/phi-rad'],               #bank angle in radians
+            me['velocities/p-rad_sec'],           #roll rate
+            me['propulsion/engine/n1'],           #engine rpm (low lag responder to throttle)
+            me['accelerations/Nz'],               #g_load
+            me['velocities/mach'],                #corner speed monitor
+            me['velocities/r-rad_sec'],           #yaw rate
+            me['aero/beta-deg'],                  #sideslip (yaw angle)
             self.prev_elev,
             self.prev_aile,
             self.prev_rudder,
@@ -250,7 +250,7 @@ class F16Env(gym.Env):
 
         self.bandit.step(self.me.pos(), dt)
         
-        obs = self._get_obs()
+        obs = self._get_obs(self.me, self.bandit.pos, self.bandit.vel, self.bandit.hp)
 
         self.curr_step += 1
         alt_agl_m = self.me['position/h-agl-ft'] * 0.3048
