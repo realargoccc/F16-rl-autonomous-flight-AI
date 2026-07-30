@@ -97,6 +97,7 @@ class Bandit:
 class F16Env(gym.Env):
     def __init__(self):
         self.me = Aircraft()
+        self.foe = Aircraft()
         super().__init__()
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(26,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
@@ -126,6 +127,7 @@ class F16Env(gym.Env):
         '''
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
+        #agent data
         self.me['ic/h-sl-ft'] = self.np_random.integers(18000, 25000) #randomize the starting position of the aircraft
         self.me['ic/vc-kts'] = 450.0 #self.np_random.integers(350,400)  #knots
         self.me['ic/throttle-cmd-norm'] = 0.5
@@ -139,6 +141,17 @@ class F16Env(gym.Env):
         self.me.run_ic()
         #counter reset
         #self.me['simulation/do_simple_trim'] = 1  #one time solution before agent take over
+        #bandit data
+        self.foe['ic/h-sl-ft'] = self.me['position/h-sl-ft']
+        self.foe['ic/vc-kts'] = 450.0
+        self.foe['ic/throttle-cmd-norm'] = 0.5
+        self.foe['propulsion/tank[0]/contents-lbs'] = 1500.0
+        self.foe['propulsion/tank[1]/contents-lbs'] = 1500.0
+        self.foe['propulsion/engine/set-running'] = 1.0
+        self.foe['ic/phi-deg'] = 0.0
+        self.foe['ic/psi-true-deg'] = 0.0
+        self.foe.run_ic()
+
         self.curr_step = 0
         self.prev_elev = 0.0
         self.prev_aile = 0.0
@@ -150,8 +163,11 @@ class F16Env(gym.Env):
         self.prev_action = np.zeros(4, dtype=np.float32) #currently 4 actions in action space
         self.prev_prev_action = np.zeros(4, dtype=np.float32)
 
-        #bandit stats
-        self.me.set_origin(self.me['position/lat-geod-deg'], self.me['position/long-gc-deg'])
+        #set fight location for both
+        lat0 = self.me['position/lat-geod-deg']
+        lon0 = self.me['position/long-gc-deg']
+        self.me.set_origin(lat0, lon0)
+        self.foe.set_origin(lat0, lon0)
 
         self.prev_heading = self.me['attitude/psi-rad']
         self.turned = 0.0   #accumulator
@@ -246,6 +262,7 @@ class F16Env(gym.Env):
         #run 
         
         self.me.run(self.sim_steps_per_action)
+        self.foe.run(self.sim_steps_per_action)
         dt = self.me.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
 
         self.bandit.step(self.me.pos(), dt)
