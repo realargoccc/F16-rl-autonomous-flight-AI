@@ -16,11 +16,25 @@ class Aircraft():
         self.lat0 = 0.0
         self.lon0 = 0.0
 
-    def __getitem__(self, k):
+    def __getitem__(self, k): #self.me for bandit, self.fdm for agent
         return self.fdm[k]
+    
     def __setitem__(self, k, v):
         self.fdm[k] = v
-        
+
+    def run_ic(self):
+        self.fdm.run_ic()
+
+    def get_delta_t(self): 
+        return self.fdm.get_delta_t()
+
+    def get_sim_time(self):
+        return self.fdm.get_sim_time()
+
+    def run(self, n):
+        for _ in range(n):
+            self.fdm.run()
+    
 class Bandit:
     def __init__(self):
         self.speed = 300.0
