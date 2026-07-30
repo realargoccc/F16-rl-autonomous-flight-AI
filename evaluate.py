@@ -31,9 +31,9 @@ raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
-    rel_alt0 = float(raw.bandit.pos[2] - raw.agent_pos()[2])    #the alt diff, if < 0, nose down
+    rel_alt0 = float(raw.bandit.pos[2] - raw.me.pos()[2])    #the alt diff, if < 0, nose down
     turn_offset = float(raw.bandit.turn_offset)
-    start_time = raw.fdm.get_sim_time()
+    start_time = raw.me.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
     step = 0
@@ -53,55 +53,55 @@ def get_episode(model, vecnorm, raw, seed=None):
         total_reward += float(reward)
 
         rows.append({
-            "time": raw.fdm.get_sim_time() - start_time,
-            "lat_deg":  raw.fdm['position/lat-geod-deg'],
-            "lon_deg":  raw.fdm['position/long-gc-deg'],
-            "alt_msl_m": raw.fdm['position/h-sl-meters'],
-            "pitch_rad":  raw.fdm['attitude/theta-deg'], #below 3 value's rad are deg, set rad to match the analyzer unit
-            "bank_rad": raw.fdm['attitude/phi-rad'],
-            "yaw_angle": raw.fdm['aero/beta-deg'],      #sideslip in degrees
-            "yaw_rate": raw.fdm['velocities/r-rad_sec'],
-            "turn_rate": raw.fdm['velocities/psidot-rad_sec'] * 57.2958, #check for min radius turn 
-            "heading_deg": raw.fdm['attitude/psi-deg'],
+            "time": raw.me.get_sim_time() - start_time,
+            "lat_deg":  raw.me['position/lat-geod-deg'],
+            "lon_deg":  raw.me['position/long-gc-deg'],
+            "alt_msl_m": raw.me['position/h-sl-meters'],
+            "pitch_rad":  raw.me['attitude/theta-deg'], #below 3 value's rad are deg, set rad to match the analyzer unit
+            "bank_rad": raw.me['attitude/phi-rad'],
+            "yaw_angle": raw.me['aero/beta-deg'],      #sideslip in degrees
+            "yaw_rate": raw.me['velocities/r-rad_sec'],
+            "turn_rate": raw.me['velocities/psidot-rad_sec'] * 57.2958, #check for min radius turn 
+            "heading_deg": raw.me['attitude/psi-deg'],
             "turned_deg": np.degrees(raw.turned),
-            "vx_ms": raw.fdm['velocities/v-north-fps'] * 0.3048,
-            "vy_ms": raw.fdm['velocities/v-east-fps'] * 0.3048,
-            "vz_ms": raw.fdm['velocities/v-down-fps'] * 0.3048,
-            "ias_ms": raw.fdm['velocities/vc-fps'] * 0.3048,
-            "engine_n1": raw.fdm['propulsion/engine/n1'],
-            "engine_n2": raw.fdm['propulsion/engine/n2'],
-            "thrust_lbs": raw.fdm['propulsion/engine/thrust-lbs'],
-            "mach": raw.fdm['velocities/mach'],
-            "aoa_rad": raw.fdm['aero/alpha-deg'],   #csv analyzer takes deg, naming rad to match analyzer unit
-            "g_load": raw.fdm['accelerations/Nz'], #aircraft g, pilot g are /n-pilot-z-norm
-            "vertical_speed_ms": raw.fdm['velocities/h-dot-fps'] * 0.3048, 
+            "vx_ms": raw.me['velocities/v-north-fps'] * 0.3048,
+            "vy_ms": raw.me['velocities/v-east-fps'] * 0.3048,
+            "vz_ms": raw.me['velocities/v-down-fps'] * 0.3048,
+            "ias_ms": raw.me['velocities/vc-fps'] * 0.3048,
+            "engine_n1": raw.me['propulsion/engine/n1'],
+            "engine_n2": raw.me['propulsion/engine/n2'],
+            "thrust_lbs": raw.me['propulsion/engine/thrust-lbs'],
+            "mach": raw.me['velocities/mach'],
+            "aoa_rad": raw.me['aero/alpha-deg'],   #csv analyzer takes deg, naming rad to match analyzer unit
+            "g_load": raw.me['accelerations/Nz'], #aircraft g, pilot g are /n-pilot-z-norm
+            "vertical_speed_ms": raw.me['velocities/h-dot-fps'] * 0.3048, 
             "engine_rpm_left": 0.0,     #f16 only has one engine so only one engine data record - also engine rpm is irrelevant to RL
             "engine_rpm_right": 0.0,
             "fuel_internal": 0.0,       #fuel is not important at this stage
-            "gear_pos": raw.fdm['gear/gear-pos-norm'], # 0 - 1
-            "alt_agl_m": raw.fdm['position/h-agl-ft'] * 0.3048,
+            "gear_pos": raw.me['gear/gear-pos-norm'], # 0 - 1
+            "alt_agl_m": raw.me['position/h-agl-ft'] * 0.3048,
             #intercept metrics
             "range_nm": raw.range / 1852.0,
             "boresight_az_deg" : np.degrees(raw.boresight_az),
             "closure_ms": float(obs[-2]),
-            "relative_alt_m" : float (raw.bandit.pos[2] - raw.agent_pos()[2]),
+            "relative_alt_m" : float (raw.bandit.pos[2] - raw.me.pos()[2]),
             "in_wez": bool (raw.gun_rmin <= raw.range <= raw.gun_rmax),
             #bandit vs agent spatial track 
             "bandit_n_m": float(raw.bandit.pos[0]),
             "bandit_e_m": float(raw.bandit.pos[1]),
             "bandit_up_m": float(raw.bandit.pos[2]),
-            "agent_n_m": float(raw.agent_pos()[0]),
-            "agent_e_m": float(raw.agent_pos()[1]),
-            "agent_up_m": float(raw.agent_pos()[2]),
+            "agent_n_m": float(raw.me.pos()[0]),
+            "agent_e_m": float(raw.me.pos()[1]),
+            "agent_up_m": float(raw.me.pos()[2]),
             #above are csv format, below are additional checkings
             "step": step,
             "reward": reward,
             "cumulative_reward": total_reward,
             "done": bool(terminated or truncated),
-            "throttle": raw.fdm['fcs/throttle-cmd-norm'],
-            "elevator": raw.fdm['fcs/elevator-cmd-norm'],
-            "aileron": raw.fdm['fcs/aileron-cmd-norm'],
-            "rudder" : raw.fdm['fcs/rudder-cmd-norm']
+            "throttle": raw.me['fcs/throttle-cmd-norm'],
+            "elevator": raw.me['fcs/elevator-cmd-norm'],
+            "aileron": raw.me['fcs/aileron-cmd-norm'],
+            "rudder" : raw.me['fcs/rudder-cmd-norm']
             }
         )
         step += 1

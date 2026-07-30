@@ -12,7 +12,7 @@ class Aircraft():
     def __init__(self):
         self.fdm = jsbsim.FGFDMExec(ROOT, None)
         self.fdm.set_debug_level(0)
-        self.load_model('f16')
+        self.fdm.load_model('f16')
         self.lat0 = 0.0
         self.lon0 = 0.0
 
@@ -34,6 +34,17 @@ class Aircraft():
     def run(self, n):
         for _ in range(n):
             self.fdm.run()
+
+    def set_origin(self, lat, lon): #both share the same fight location
+        self.lat0, self.lon0 = lat, lon
+
+    def pos(self):
+        lat = self.fdm['position/lat-geod-deg']
+        lon = self.fdm['position/long-gc-deg']
+        alt = self.fdm['position/h-sl-meters']
+        north = (lat - self.lat0) * 111320.0
+        east = (lon - self.lon0) * 111320.0 * np.cos(np.radians(self.lat0))
+        return np.array([north, east, alt])
     
 class Bandit:
     def __init__(self):
@@ -85,9 +96,7 @@ class Bandit:
 
 class F16Env(gym.Env):
     def __init__(self):
-        self.fdm = jsbsim.FGFDMExec(ROOT, None) #load FDM
-        self.fdm.set_debug_level(0)             #remove banners of aircraft configurations (hundres loc)
-        self.fdm.load_model('f16')              #load f16
+        self.me = Aircraft()
         super().__init__()
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(26,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
@@ -117,19 +126,19 @@ class F16Env(gym.Env):
         '''
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
-        self.fdm['ic/h-sl-ft'] = self.np_random.integers(18000, 25000) #randomize the starting position of the aircraft
-        self.fdm['ic/vc-kts'] = 450.0 #self.np_random.integers(350,400)  #knots
-        self.fdm['ic/throttle-cmd-norm'] = 0.5
-        self.fdm['ic/elevator-cmd-norm'] = 0.0
-        self.fdm["gear/gear-cmd-norm"] = 0.0
-        self.fdm['propulsion/tank[0]/contents-lbs'] = 1500.0 #set initial fuel tank
-        self.fdm['propulsion/tank[1]/contents-lbs'] = 1500.0
-        self.fdm['propulsion/engine/set-running'] = 1.0      #Make sure the engine starts
-        self.fdm['ic/phi-deg'] = 0.0 #wings level (no bank)
-        self.fdm['ic/psi-true-deg'] = 0.0 # spawn due northing heading 000
-        self.fdm.run_ic()
+        self.me['ic/h-sl-ft'] = self.np_random.integers(18000, 25000) #randomize the starting position of the aircraft
+        self.me['ic/vc-kts'] = 450.0 #self.np_random.integers(350,400)  #knots
+        self.me['ic/throttle-cmd-norm'] = 0.5
+        self.me['ic/elevator-cmd-norm'] = 0.0
+        self.me["gear/gear-cmd-norm"] = 0.0
+        self.me['propulsion/tank[0]/contents-lbs'] = 1500.0 #set initial fuel tank
+        self.me['propulsion/tank[1]/contents-lbs'] = 1500.0
+        self.me['propulsion/engine/set-running'] = 1.0      #Make sure the engine starts
+        self.me['ic/phi-deg'] = 0.0 #wings level (no bank)
+        self.me['ic/psi-true-deg'] = 0.0 # spawn due northing heading 000
+        self.me.run_ic()
         #counter reset
-        #self.fdm['simulation/do_simple_trim'] = 1  #one time solution before agent take over
+        #self.me['simulation/do_simple_trim'] = 1  #one time solution before agent take over
         self.curr_step = 0
         self.prev_elev = 0.0
         self.prev_aile = 0.0
@@ -142,13 +151,12 @@ class F16Env(gym.Env):
         self.prev_prev_action = np.zeros(4, dtype=np.float32)
 
         #bandit stats
-        self.lat_agent = self.fdm['position/lat-geod-deg']
-        self.lon_agent = self.fdm['position/long-gc-deg'] 
+        self.me.set_origin(self.me['position/lat-geod-deg'], self.me['position/long-gc-deg'])
 
-        self.prev_heading = self.fdm['attitude/psi-rad']
+        self.prev_heading = self.me['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
-        self.bandit.reset(self.np_random, self.fdm['position/h-sl-meters'])
+        self.bandit.reset(self.np_random, self.me['position/h-sl-meters'])
         self.agent_hp = 1.0
         self.prev_obs_boresight_az = None
         self.prev_obs_boresight = None
@@ -159,25 +167,25 @@ class F16Env(gym.Env):
         info = {}
         return obs, info
         
-    def _get_obs(self):
-        relative_data = self.bandit.pos - self.agent_pos()
+    def _get_obs(self, me, foe_pos, foe_vel, foe_hp):
+        relative_data = self.bandit.pos - self.me.pos()
         range = np.linalg.norm(relative_data)
         los_hat = relative_data / (range + 1e-9) #normalize range, leaving the pure direction 
         
         #3D cone
-        pitch_angle = self.fdm['attitude/theta-rad']
-        heading_angle = self.fdm['attitude/psi-rad']  #from north's perspective
+        pitch_angle = self.me['attitude/theta-rad']
+        heading_angle = self.me['attitude/psi-rad']  #from north's perspective
         nose_vec = np.array([np.cos(pitch_angle) * np.cos(heading_angle),   #North
                              np.cos(pitch_angle) * np.sin(heading_angle),   #East
                              np.sin(pitch_angle)])                          #Up
         self.range = float(range) 
         bearing = np.arctan2(relative_data[1], relative_data[0]) #Absolute bearing: from north 
-        boresight_az = (bearing - self.fdm['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
+        boresight_az = (bearing - self.me['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
         self.boresight = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
         relative_alt = relative_data[2]
-        agent_vel = np.array([self.fdm['velocities/v-north-fps'] * 0.3048,
-                              self.fdm['velocities/v-east-fps'] * 0.3048,
-                              -self.fdm['velocities/v-down-fps'] * 0.3048])
+        agent_vel = np.array([self.me['velocities/v-north-fps'] * 0.3048,
+                              self.me['velocities/v-east-fps'] * 0.3048,
+                              -self.me['velocities/v-down-fps'] * 0.3048])
         closure = -np.dot(self.bandit.vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
         self.closure = float(closure)
         self.boresight_az = float(boresight_az) #for eval logging
@@ -187,7 +195,7 @@ class F16Env(gym.Env):
             self.prev_obs_boresight_az = boresight_az 
             self.prev_obs_boresight = self.boresight
         
-        dt_obs = self.fdm.get_delta_t() * self.sim_steps_per_action
+        dt_obs = self.me.get_delta_t() * self.sim_steps_per_action
         scale = dt_obs * np.radians(30.0)
         d_boresight_az = (boresight_az - self.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
 
@@ -201,19 +209,19 @@ class F16Env(gym.Env):
         bandit_state = np.array([range, boresight_az, relative_alt, closure, self.bandit.hp, self.boresight, 
                                  boresight_az_rate, boresight_rate], dtype=np.float32)
         agent_state = np.array(
-            [self.fdm['position/h-sl-meters'],          #altitude
-            self.fdm['velocities/vc-fps'] * 0.3048,     #IAS
-            self.fdm['attitude/theta-rad'],             #pitch
-            self.fdm['velocities/q-rad_sec'],           #pitch rate
-            self.fdm['velocities/h-dot-fps'] * 0.3048,  #vertical speed
-            self.fdm['aero/alpha-deg'],                 #aoa-deg
-            self.fdm['attitude/phi-rad'],               #bank angle in radians
-            self.fdm['velocities/p-rad_sec'],           #roll rate
-            self.fdm['propulsion/engine/n1'],           #engine rpm (low lag responder to throttle)
-            self.fdm['accelerations/Nz'],               #g_load
-            self.fdm['velocities/mach'],                #corner speed monitor
-            self.fdm['velocities/r-rad_sec'],           #yaw rate
-            self.fdm['aero/beta-deg'],                  #sideslip (yaw angle)
+            [self.me['position/h-sl-meters'],          #altitude
+            self.me['velocities/vc-fps'] * 0.3048,     #IAS
+            self.me['attitude/theta-rad'],             #pitch
+            self.me['velocities/q-rad_sec'],           #pitch rate
+            self.me['velocities/h-dot-fps'] * 0.3048,  #vertical speed
+            self.me['aero/alpha-deg'],                 #aoa-deg
+            self.me['attitude/phi-rad'],               #bank angle in radians
+            self.me['velocities/p-rad_sec'],           #roll rate
+            self.me['propulsion/engine/n1'],           #engine rpm (low lag responder to throttle)
+            self.me['accelerations/Nz'],               #g_load
+            self.me['velocities/mach'],                #corner speed monitor
+            self.me['velocities/r-rad_sec'],           #yaw rate
+            self.me['aero/beta-deg'],                  #sideslip (yaw angle)
             self.prev_elev,
             self.prev_aile,
             self.prev_rudder,
@@ -223,17 +231,6 @@ class F16Env(gym.Env):
         )
 
         return np.concatenate([agent_state, bandit_state])
-    def agent_pos(self):
-        lat = self.fdm['position/lat-geod-deg']
-        lon = self.fdm['position/long-gc-deg']
-        alt = self.fdm['position/h-sl-meters']
-
-        #three components of the velocity
-        north = (lat - self.lat_agent) * 111320.0 #deg lat -> meters
-        east = (lon - self.lon_agent) * 111320.0 * np.cos(np.radians(self.lat_agent))
-        up = alt
-
-        return np.array([north, east, up])        
 
     def step(self, action):
         a = 0.7
@@ -241,32 +238,31 @@ class F16Env(gym.Env):
         self.aile_cmd = a * float(action[2]) + (1-a) * self.aile_cmd
         self.rud_cmd = a * float(action[3]) + (1-a) * self.rud_cmd
 
-        self.fdm['fcs/throttle-cmd-norm'] = float ((action[0] + 1.0) / 2.0)   #assign value back to the self.action_space
-        self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
-        self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
-        self.fdm['fcs/rudder-cmd-norm'] = self.rud_cmd
-        self.fdm["gear/gear-cmd-norm"] = 0.0
+        self.me['fcs/throttle-cmd-norm'] = float ((action[0] + 1.0) / 2.0)   #assign value back to the self.action_space
+        self.me['fcs/elevator-cmd-norm'] = self.elev_cmd
+        self.me['fcs/aileron-cmd-norm'] = self.aile_cmd
+        self.me['fcs/rudder-cmd-norm'] = self.rud_cmd
+        self.me["gear/gear-cmd-norm"] = 0.0
         #run 
         
-        for _ in range(self.sim_steps_per_action):
-            self.fdm.run()
-        dt = self.fdm.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
+        self.me.run(self.sim_steps_per_action)
+        dt = self.me.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
 
-        self.bandit.step(self.agent_pos(), dt)
+        self.bandit.step(self.me.pos(), dt)
         
         obs = self._get_obs()
 
         self.curr_step += 1
-        alt_agl_m = self.fdm['position/h-agl-ft'] * 0.3048
+        alt_agl_m = self.me['position/h-agl-ft'] * 0.3048
         truncated = bool(self.curr_step >= self.max_episodes_steps)
-        speed_knots = self.fdm['velocities/vc-fps'] * 0.592484    #speed in knots
-        curr_throttle = self.fdm['fcs/throttle-cmd-norm']
+        speed_knots = self.me['velocities/vc-fps'] * 0.592484    #speed in knots
+        curr_throttle = self.me['fcs/throttle-cmd-norm']
         #Turning Policy Units
-        curr_heading = self.fdm['attitude/psi-rad'] 
-        curr_bank = self.fdm['attitude/phi-deg'] 
-        curr_g = self.fdm['accelerations/Nz']
+        curr_heading = self.me['attitude/psi-rad'] 
+        curr_bank = self.me['attitude/phi-deg'] 
+        curr_g = self.me['accelerations/Nz']
         aim_cone = np.radians(25.0)
-        crashed = bool(alt_agl_m < 30) or abs(self.fdm['accelerations/Nz']) > 13.0 or abs(curr_g) > 13.0
+        crashed = bool(alt_agl_m < 30) or abs(self.me['accelerations/Nz']) > 13.0 or abs(curr_g) > 13.0
 
         delta_turn = (curr_heading - self.prev_heading + np.pi) % (2*np.pi) - np.pi
         self.turned += delta_turn
@@ -301,7 +297,7 @@ class F16Env(gym.Env):
             self.bandit.hp -= damage
             reward += self.k_damage * damage
         #wez bandit's configs
-        bandit_boresight = self.bandit.boresight_to(self.agent_pos())
+        bandit_boresight = self.bandit.boresight_to(self.me.pos())
         if (bandit_boresight < self.gun_cone) and (self.gun_rmin <= self.range <= self.gun_rmax):
             damage = dt * (self.gun_rmin / self.range)
             self.agent_hp -= damage
