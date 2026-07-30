@@ -8,6 +8,19 @@ import math
 
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
+class Aircraft():
+    def __init__(self):
+        self.fdm = jsbsim.FGFDMExec(ROOT, None)
+        self.fdm.set_debug_level(0)
+        self.load_model('f16')
+        self.lat0 = 0.0
+        self.lon0 = 0.0
+
+    def __getitem__(self, k):
+        return self.fdm[k]
+    def __setitem__(self, k, v):
+        self.fdm[k] = v
+        
 class Bandit:
     def __init__(self):
         self.speed = 300.0
