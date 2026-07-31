@@ -51,6 +51,11 @@ class Aircraft():
         east = (lon - self.lon0) * 111320.0 * np.cos(np.radians(self.lat0))
         return np.array([north, east, alt])
 
+    def vel(self): #NEU frame 
+        return np.array([self.fdm['position/v-north-fps'] * 0.3048,
+                         self.fdm['position/v-east-fps'] * 0.3048,
+                        -self.fdm['position/v-down-fps'] * 0.3048])
+
     def ctrl_input(self, action):
         smooth = 0.7
         self.elev_cmd = smooth * float(action[1]) + (1 - smooth) * self.elev_cmd
@@ -160,15 +165,7 @@ class F16Env(gym.Env):
         #counter reset
         #self.me['simulation/do_simple_trim'] = 1  #one time solution before agent take over
         #bandit data
-        self.foe['ic/h-sl-ft'] = self.me['position/h-sl-ft']
-        self.foe['ic/vc-kts'] = 450.0
-        self.foe['ic/throttle-cmd-norm'] = 0.5
-        self.foe['propulsion/tank[0]/contents-lbs'] = 1500.0
-        self.foe['propulsion/tank[1]/contents-lbs'] = 1500.0
-        self.foe['propulsion/engine/set-running'] = 1.0
-        self.foe['ic/phi-deg'] = 0.0
-        self.foe['ic/psi-true-deg'] = 0.0
-        self.foe.run_ic()
+       
 
         self.curr_step = 0
         self.prev_elev = 0.0
@@ -191,6 +188,23 @@ class F16Env(gym.Env):
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
         self.bandit.reset(self.np_random, self.me['position/h-sl-meters'])
+        
+        #Foe spawn configs
+
+        foe_spawn_low, foe_spawn_high = self.np_random.choice([-500.0, -250.0], [250.0, 500.0]) 
+        foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
+        self.foe['ic/lat-gc-deg'] = lat0 + 700.0 / 111320.0
+        self.foe['ic/long-gc-deg'] = lon0
+        self.foe['ic/h-sl-meter'] = self.me['position/h-sl-meter'] + foe_rel_alt #agent's perspective 
+        self.foe['ic/vc-kts'] = 450.0
+        self.foe['ic/throttle-cmd-norm'] = 0.5
+        self.foe['propulsion/tank[0]/contents-lbs'] = 1500.0
+        self.foe['propulsion/tank[1]/contents-lbs'] = 1500.0
+        self.foe['propulsion/engine/set-running'] = 1.0
+        self.foe['ic/phi-deg'] = 0.0
+        self.foe['ic/psi-true-deg'] = 0.0
+        self.foe.run_ic()
+
         self.agent_hp = 1.0
         self.prev_obs_boresight_az = None
         self.prev_obs_boresight = None
