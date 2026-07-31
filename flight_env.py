@@ -15,6 +15,9 @@ class Aircraft():
         self.fdm.load_model('f16')
         self.lat0 = 0.0
         self.lon0 = 0.0
+        self.elev_cmd = 0.0
+        self.aile_cmd = 0.0
+        self.rudd_cmd = 0.0
 
     def __getitem__(self, k): #self.me for bandit, self.fdm for agent
         return self.fdm[k]
