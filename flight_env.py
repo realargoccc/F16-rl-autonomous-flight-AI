@@ -68,8 +68,17 @@ class Aircraft():
         self.fdm['fcs/rudder-cmd-norm'] = self.rudd_cmd
         self.fdm['gear/gear-cmd-norm'] = 0.0
 
-    def maneuver(self, ac, )
-    
+    def maneuver(self, airc_name, exp_heading, exp_pitch, exp_speed): #k = conversion rate
+        k_hdg, k_bank, k_aile = 2.0, 1.5, 0.5
+        k_pitch, k_elev = 3.0, 2.0
+        k_speed, thrt_bias = 0.02, 0.5
+        max_bank = np.radians(75.0)
+
+        heading_err = (exp_heading - airc_name['attitude/psi-rad'] + np.pi) % (2*np.pi) - np.pi
+        exp_bank = np.clip(k_hdg * heading_err, -max_bank, max_bank)
+        aile = np.clip(k_bank * (exp_bank - airc_name['attitude/phi-rad']) - k_aile * airc_name['velocities/p-rad-sec'], -1.0, 1.0)
+        #                        bank_err                                       roll_rate
+        
 class Bandit:
     def __init__(self):
         self.speed = 300.0
