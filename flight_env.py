@@ -68,6 +68,7 @@ class Aircraft():
         self.fdm['fcs/rudder-cmd-norm'] = self.rudd_cmd
         self.fdm['gear/gear-cmd-norm'] = 0.0
 
+    def maneuver(self, ac, )
     
 class Bandit:
     def __init__(self):
@@ -188,14 +189,14 @@ class F16Env(gym.Env):
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
         self.bandit.reset(self.np_random, self.me['position/h-sl-meters'])
-        
+
         #Foe spawn configs
 
         foe_spawn_low, foe_spawn_high = self.np_random.choice([-500.0, -250.0], [250.0, 500.0]) 
         foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
         self.foe['ic/lat-gc-deg'] = lat0 + 700.0 / 111320.0
         self.foe['ic/long-gc-deg'] = lon0
-        self.foe['ic/h-sl-meter'] = self.me['position/h-sl-meter'] + foe_rel_alt #agent's perspective 
+        self.foe['ic/h-sl-meters'] = self.me['position/h-sl-meters'] + foe_rel_alt #agent's perspective 
         self.foe['ic/vc-kts'] = 450.0
         self.foe['ic/throttle-cmd-norm'] = 0.5
         self.foe['propulsion/tank[0]/contents-lbs'] = 1500.0
@@ -281,16 +282,7 @@ class F16Env(gym.Env):
         return np.concatenate([agent_state, bandit_state])
 
     def step(self, action):
-        a = 0.7
-        self.elev_cmd = a * float(action[1]) + (1-a) * self.elev_cmd
-        self.aile_cmd = a * float(action[2]) + (1-a) * self.aile_cmd
-        self.rud_cmd = a * float(action[3]) + (1-a) * self.rud_cmd
-
-        self.me['fcs/throttle-cmd-norm'] = float ((action[0] + 1.0) / 2.0)   #assign value back to the self.action_space
-        self.me['fcs/elevator-cmd-norm'] = self.elev_cmd
-        self.me['fcs/aileron-cmd-norm'] = self.aile_cmd
-        self.me['fcs/rudder-cmd-norm'] = self.rud_cmd
-        self.me["gear/gear-cmd-norm"] = 0.0
+        self.me.ctrl_input(action)
         #run 
         
         self.me.run(self.sim_steps_per_action)
@@ -346,8 +338,8 @@ class F16Env(gym.Env):
             self.bandit.hp -= damage
             reward += self.k_damage * damage
         #wez bandit's configs
-        bandit_boresight = self.bandit.boresight_to(self.me.pos())
-        if (bandit_boresight < self.gun_cone) and (self.gun_rmin <= self.range <= self.gun_rmax):
+        foe_boresight = self.foe.boresight_to(self.me.pos())
+        if (foe_boresight < self.gun_cone) and (self.gun_rmin <= self.range <= self.gun_rmax):
             damage = dt * (self.gun_rmin / self.range)
             self.agent_hp -= damage
             reward -= self.k_damage * damage
