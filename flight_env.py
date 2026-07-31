@@ -18,6 +18,7 @@ class Aircraft():
         self.elev_cmd = 0.0
         self.aile_cmd = 0.0
         self.rudd_cmd = 0.0
+        self.throt_cmd = 0.0
 
     def __getitem__(self, k): #self.me for bandit, self.fdm for agent
         return self.fdm[k]
@@ -27,6 +28,7 @@ class Aircraft():
 
     def run_ic(self):
         self.fdm.run_ic()
+        self.elev_cmd = self.aile_cmd = self.rudd_cmd = 0.0
 
     def get_delta_t(self): 
         return self.fdm.get_delta_t()
@@ -48,6 +50,19 @@ class Aircraft():
         north = (lat - self.lat0) * 111320.0
         east = (lon - self.lon0) * 111320.0 * np.cos(np.radians(self.lat0))
         return np.array([north, east, alt])
+
+    def ctrl_input(self, action):
+        smooth = 0.7
+        self.elev_cmd = smooth * float(action[1]) + (1 - smooth) * self.elev_cmd
+        self.aile_cmd = smooth * float(action[2]) + (1 - smooth) * self.aile_cmd
+        self.rudd_cmd = smooth * float(action[3]) + (1 - smooth) * self.rudd_cmd
+
+        self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
+        self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
+        self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
+        self.fdm['fcs/rudder-cmd-norm'] = self.rudd_cmd
+        self.fdm['gear/gear-cmd-norm'] = 0.0
+
     
 class Bandit:
     def __init__(self):
