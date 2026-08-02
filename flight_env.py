@@ -50,6 +50,21 @@ class Aircraft():
         east = (lon - self.lon0) * 111320.0 * np.cos(np.radians(self.lat0))
         return np.array([north, east, alt])
 
+    #for boresight_to angle calculation
+    def nose(self): 
+        pitch = self.fdm['attitude/theta-rad']
+        heading = self.fdm['attitude/psi-rad']
+
+        return np.array([np.cos(pitch) * np.cos(heading),
+                         np.cos(pitch) * np.sin(heading),
+                         np.sin(pitch)])
+
+    def boresight_to(self, target_pos):
+        los = target_pos - self.pos()
+        los_hat = los / (np.linalg.norm(los) + 1e-9)
+
+        return float(np.arccos(np.clip(np.dot(self.nose(), los_hat), -1.0, 1.0)))
+    
     def vel(self): #NEU frame 
         return np.array([self.fdm['velocities/v-north-fps'] * 0.3048,
                          self.fdm['velocities/v-east-fps'] * 0.3048,
@@ -67,25 +82,31 @@ class Aircraft():
         self.fdm['fcs/rudder-cmd-norm'] = self.rudd_cmd
         self.fdm['gear/gear-cmd-norm'] = 0.0
 
-    def maneuver(self, airc_name, exp_heading, exp_pitch, exp_speed): #k = conversion rate
+    def maneuver(self, exp_heading, exp_pitch, exp_speed): #k = conversion rate
         k_hdg, k_bank, k_aile = 2.0, 1.5, 0.5
         k_pitch, k_elev = 3.0, 2.0
         k_speed, thrt_bias = 0.02, 0.5
         max_bank = np.radians(75.0)
 
-        #heading
-        heading_err = (exp_heading - airc_name['attitude/psi-rad'] + np.pi) % (2*np.pi) - np.pi
+        #heading: -pi to pi
+        heading_err = (exp_heading - self['attitude/psi-rad'] + np.pi) % (2*np.pi) - np.pi
         exp_bank = np.clip(k_hdg * heading_err, -max_bank, max_bank)
 
         #bank
-        bank_err = exp_bank - airc_name['attitude/phi-rad']
-        roll_rate = airc_name['velocities/p-rad-sec']
+        bank_err = exp_bank - self['attitude/phi-rad']
+        roll_rate = self['velocities/p-rad_sec']
         aile = np.clip(k_bank * bank_err - k_aile * roll_rate , -1.0, 1.0)
 
         #pitch
-        pitch_err = exp_pitch - airc_name['attitude/theta-rad']
-        pitch_rate = airc_name['velocities/q-rad-rad']
+        pitch_err = exp_pitch - self['attitude/theta-rad']
+        pitch_rate = self['velocities/q-rad_sec']
         elev = np.clip(-(k_pitch * pitch_err - k_elev * pitch_rate), -1.0, 1.0)
+
+        #speed
+        spd_err = exp_speed - self['velocities/vt-fps'] * 0.3048
+        throttle = np.clip(thrt_bias + k_speed * spd_err, 0.0, 1.0) * 2.0 - 1.0
+
+        return np.array([throttle, elev, aile, 0.0], dtype=np.float32)
         
 
 class Bandit:
@@ -386,7 +407,7 @@ class F16Env(gym.Env):
         self.prev_elev, self.prev_aile = self.me.elev_cmd, self.me.aile_cmd
         self.prev_prev_action = self.prev_action.copy()
         self.prev_action = np.array(action, dtype=np.float32)
-        self.prev_rudder, self.prev_throttle = self.rudd_cmd, action[0]
+        self.prev_rudder, self.prev_throttle = self.me.rudd_cmd, action[0]
         
         info = {}
         return obs, float(reward), terminated, truncated, info    
