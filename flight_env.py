@@ -18,7 +18,6 @@ class Aircraft():
         self.elev_cmd = 0.0
         self.aile_cmd = 0.0
         self.rudd_cmd = 0.0
-        self.throt_cmd = 0.0
 
     def __getitem__(self, k): #self.me for bandit, self.fdm for agent
         return self.fdm[k]
@@ -52,9 +51,9 @@ class Aircraft():
         return np.array([north, east, alt])
 
     def vel(self): #NEU frame 
-        return np.array([self.fdm['position/v-north-fps'] * 0.3048,
-                         self.fdm['position/v-east-fps'] * 0.3048,
-                        -self.fdm['position/v-down-fps'] * 0.3048])
+        return np.array([self.fdm['velocities/v-north-fps'] * 0.3048,
+                         self.fdm['velocities/v-east-fps'] * 0.3048,
+                        -self.fdm['velocities/v-down-fps'] * 0.3048])
 
     def ctrl_input(self, action):
         smooth = 0.7
@@ -74,11 +73,21 @@ class Aircraft():
         k_speed, thrt_bias = 0.02, 0.5
         max_bank = np.radians(75.0)
 
+        #heading
         heading_err = (exp_heading - airc_name['attitude/psi-rad'] + np.pi) % (2*np.pi) - np.pi
         exp_bank = np.clip(k_hdg * heading_err, -max_bank, max_bank)
-        aile = np.clip(k_bank * (exp_bank - airc_name['attitude/phi-rad']) - k_aile * airc_name['velocities/p-rad-sec'], -1.0, 1.0)
-        #                        bank_err                                       roll_rate
+
+        #bank
+        bank_err = exp_bank - airc_name['attitude/phi-rad']
+        roll_rate = airc_name['velocities/p-rad-sec']
+        aile = np.clip(k_bank * bank_err - k_aile * roll_rate , -1.0, 1.0)
+
+        #pitch
+        pitch_err = exp_pitch - airc_name['attitude/theta-rad']
+        pitch_rate = airc_name['velocities/q-rad-rad']
+        elev = np.clip(-(k_pitch * pitch_err - k_elev * pitch_rate), -1.0, 1.0)
         
+
 class Bandit:
     def __init__(self):
         self.speed = 300.0
@@ -182,9 +191,6 @@ class F16Env(gym.Env):
         self.prev_aile = 0.0
         self.prev_rudder = 0.0
         self.prev_throttle = 0.0
-        self.elev_cmd = 0.0
-        self.aile_cmd = 0.0
-        self.rud_cmd = 0.0
         self.prev_action = np.zeros(4, dtype=np.float32) #currently 4 actions in action space
         self.prev_prev_action = np.zeros(4, dtype=np.float32)
 
@@ -201,7 +207,7 @@ class F16Env(gym.Env):
 
         #Foe spawn configs
 
-        foe_spawn_low, foe_spawn_high = self.np_random.choice([-500.0, -250.0], [250.0, 500.0]) 
+        foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)]) 
         foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
         self.foe['ic/lat-gc-deg'] = lat0 + 700.0 / 111320.0
         self.foe['ic/long-gc-deg'] = lon0
@@ -377,10 +383,10 @@ class F16Env(gym.Env):
         terminated = crashed or lose or win
 
         # bookkeeping — feeds the observation
-        self.prev_elev,   self.prev_aile     = self.elev_cmd, self.aile_cmd
+        self.prev_elev, self.prev_aile = self.me.elev_cmd, self.me.aile_cmd
         self.prev_prev_action = self.prev_action.copy()
         self.prev_action = np.array(action, dtype=np.float32)
-        self.prev_rudder, self.prev_throttle = self.rud_cmd,  action[0]
+        self.prev_rudder, self.prev_throttle = self.rudd_cmd, action[0]
         
         info = {}
         return obs, float(reward), terminated, truncated, info    
