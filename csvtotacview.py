@@ -12,6 +12,7 @@ reference_time = "2026-07-12T12:00:00Z" # fight time in UTC
 
 agent_ID = "A0"
 bandit_ID = "B0"
+foe_ID = "C0"
 
 m_per_deg_lat = 111320.0
 
@@ -67,6 +68,20 @@ def main():
         else:
             output.append(f"{bandit_ID},T={T_bandit}")
 
+        #agent status
+        f_lon, f_lat = local_to_lonlat(float(r["foe_n_m"]), float(r["foe_e_m"]))
+        f_alt = float(r["foe_up_m"])
+        T_foe = (f"{fnum(f_lon)}|{fnum(f_lat)}|{fnum(f_alt)}|"
+                 f"{fnum(float(r['foe_roll_deg']))}|"
+                 f"{fnum(float(r['foe_pitch_deg']))}|"
+                 f"{fnum(float(r['foe_yaw_deg']))}|")
+
+        if i == 0:
+            output.append(f"{foe_ID},T={T_foe}, Name=Red16-C, "
+                          f"Color=Orange,Callsign=Ghost")
+        else:
+            output.append(f"{foe_ID},T={T_foe}")
+            
     with open(acmi_path, "w", newline="\n", encoding="utf-8") as f:
         f.write("\n".join(output) + "\n")
     duration = float(rows[-1]["time"]) - t_0

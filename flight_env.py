@@ -232,7 +232,7 @@ class F16Env(gym.Env):
         foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
         self.foe['ic/lat-gc-deg'] = lat0 + 700.0 / 111320.0
         self.foe['ic/long-gc-deg'] = lon0
-        self.foe['ic/h-sl-meters'] = self.me['position/h-sl-meters'] + foe_rel_alt #agent's perspective 
+        self.foe['ic/h-sl-ft'] = (self.me['position/h-sl-meters'] + foe_rel_alt) / 0.3048 #agent's perspective 
         self.foe['ic/vc-kts'] = 450.0
         self.foe['ic/throttle-cmd-norm'] = 0.5
         self.foe['propulsion/tank[0]/contents-lbs'] = 1500.0
@@ -242,6 +242,7 @@ class F16Env(gym.Env):
         self.foe['ic/psi-true-deg'] = 0.0
         self.foe.run_ic()
 
+        
         self.agent_hp = 1.0
         self.prev_obs_boresight_az = None
         self.prev_obs_boresight = None
@@ -318,6 +319,10 @@ class F16Env(gym.Env):
         return np.concatenate([agent_state, bandit_state])
 
     def step(self, action):
+        los = self.me.pos() - self.me.pos() - self.foe.pos()
+        exp_heading = np.arctan2(los[1], los[0] + self.bandit.turn_offset)
+        foe_action = self.foe.maneuver(exp_heading, self.bandit.pitch_target, self.bandit.nominal_speed)
+        self.foe.ctrl_input(foe_action)
         self.me.ctrl_input(action)
         #run 
         
