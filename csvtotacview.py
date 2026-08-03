@@ -11,7 +11,6 @@ ref_lon = -115.00
 reference_time = "2026-07-12T12:00:00Z" # fight time in UTC
 
 agent_ID = "A0"
-bandit_ID = "B0"
 foe_ID = "C0"
 
 m_per_deg_lat = 111320.0
@@ -55,18 +54,6 @@ def main():
                           f"Color=Blue,Callsign=Sheppherd,Pilot=V2.1.9")
         else:
             output.append(f"{agent_ID},T={T}")
-
-        #bandit 
-        b_lon, b_lat = local_to_lonlat(float(r["bandit_n_m"]), float(r["bandit_e_m"]))
-        b_alt = float(r["bandit_up_m"])
-
-        T_bandit = f"{fnum(b_lon)}|{fnum(b_lat)}|{fnum(b_alt)}" #0 0 0 in current model
-
-        if i == 0: 
-            output.append(f"{bandit_ID},T={T_bandit},Name=Su-27, "
-                          f"Color=Red,Callsign=Bandit")
-        else:
-            output.append(f"{bandit_ID},T={T_bandit}")
 
         #agent status
         f_lon, f_lat = local_to_lonlat(float(r["foe_n_m"]), float(r["foe_e_m"]))

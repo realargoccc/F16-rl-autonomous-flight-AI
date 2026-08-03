@@ -31,8 +31,6 @@ raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
-    rel_alt0 = float(raw.bandit.pos[2] - raw.me.pos()[2])    #the alt diff, if < 0, nose down
-    turn_offset = float(raw.bandit.turn_offset)
     start_time = raw.me.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
@@ -84,12 +82,7 @@ def get_episode(model, vecnorm, raw, seed=None):
             "range_nm": raw.range / 1852.0,
             "boresight_az_deg" : np.degrees(raw.boresight_az),
             "closure_ms": float(obs[-2]),
-            "relative_alt_m" : float (raw.bandit.pos[2] - raw.me.pos()[2]),
             "in_wez": bool (raw.gun_rmin <= raw.range <= raw.gun_rmax),
-            #bandit vs agent spatial track 
-            "bandit_n_m": float(raw.bandit.pos[0]),
-            "bandit_e_m": float(raw.bandit.pos[1]),
-            "bandit_up_m": float(raw.bandit.pos[2]),
             "foe_n_m": float(raw.foe.pos()[0]),
             "foe_e_m": float(raw.foe.pos()[1]),
             "foe_up_m": float(raw.foe.pos()[2]),
