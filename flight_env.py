@@ -320,8 +320,8 @@ class F16Env(gym.Env):
         return np.concatenate([agent_state, bandit_state])
 
     def step(self, action):
-        los = self.me.pos() - self.me.pos() - self.foe.pos()
-        exp_heading = np.arctan2(los[1], los[0] + self.bandit.turn_offset)
+        los = self.me.pos() - self.foe.pos()
+        exp_heading = np.arctan2(los[1], los[0]) + self.bandit.turn_offset
         foe_action = self.foe.maneuver(exp_heading, self.bandit.pitch_target, self.bandit.nominal_speed)
         self.foe.ctrl_input(foe_action)
         self.me.ctrl_input(action)

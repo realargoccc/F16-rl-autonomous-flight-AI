@@ -112,14 +112,14 @@ def get_episode(model, vecnorm, raw, seed=None):
         )
         step += 1
     completed = bool(abs(raw.turned) >= 2 * np.pi)  #turned 360 degrees are consider completed
-    win = bool(raw.bandit.hp <= 0.0)
+    win = bool(raw.foe_hp <= 0.0)
     lose = bool(raw.agent_hp <= 0.0)
     summary = {
         "length": step,
         "total_reward": total_reward,
         "win": win, 
         "lose": lose,
-        "bandit_hp": float(raw.bandit.hp),
+        "foe_hp": float(raw.foe_hp),
         "agent_hp" : float(raw.agent_hp),
         "rel_alt_init": rel_alt0,
         "rows": rows,
@@ -130,7 +130,7 @@ def get_episode(model, vecnorm, raw, seed=None):
 def episode_key(epi):
     #priority rank: reached wez, closest distance to wez, nose point direction, reward
     return (int(epi["win"]),
-            epi["agent_hp"] - epi["bandit_hp"],
+            epi["agent_hp"] - epi["foe_hp"],
             epi["total_reward"])
 
 def seed_sweep(model, vecnorm, raw, num_episodes=50):
@@ -150,7 +150,7 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
         
         print(f"ep{epi:02d} relative alt: {episode['rel_alt_init']:+6.0f}meters | "
               f"win={str(episode['win']):5} | "
-              f"a_hp:{episode['agent_hp']:.2f} | b_hp:{episode['bandit_hp']:.2f} | "
+              f"a_hp:{episode['agent_hp']:.2f} | f_hp:{episode['foe_hp']:.2f} | "
               f"reward={episode['total_reward']:7.1f} ")
 
     buckets = {"flee":[0,0], "beam +": [0,0], "beam -": [0,0]}
