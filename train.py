@@ -7,10 +7,10 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, SubprocV
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
-model_load = "ppo_f16_eleva_v2.4.3.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v2.5.0.zip" 
-vecnorm_load = "vecnorm_eleva_v2.4.3.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v2.5.0.pkl"
+model_load = "ppo_f16_eleva_v2.5.0.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+model_path = "ppo_f16_eleva_v2.5.1.zip" 
+vecnorm_load = "vecnorm_eleva_v2.5.0.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+vecnorm_path = "vecnorm_eleva_v2.5.1.pkl"
 
 #sanity check 
 #env = F16Env()
