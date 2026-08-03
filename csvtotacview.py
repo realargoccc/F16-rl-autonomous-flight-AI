@@ -74,14 +74,14 @@ def main():
         T_foe = (f"{fnum(f_lon)}|{fnum(f_lat)}|{fnum(f_alt)}|"
                  f"{fnum(float(r['foe_roll_deg']))}|"
                  f"{fnum(float(r['foe_pitch_deg']))}|"
-                 f"{fnum(float(r['foe_yaw_deg']))}|")
+                 f"{fnum(float(r['foe_yaw_deg']))}")
 
         if i == 0:
-            output.append(f"{foe_ID},T={T_foe}, Name=Red16-C, "
+            output.append(f"{foe_ID},T={T_foe}, Name=F-16C, "
                           f"Color=Orange,Callsign=Ghost")
         else:
             output.append(f"{foe_ID},T={T_foe}")
-            
+
     with open(acmi_path, "w", newline="\n", encoding="utf-8") as f:
         f.write("\n".join(output) + "\n")
     duration = float(rows[-1]["time"]) - t_0

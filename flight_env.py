@@ -84,7 +84,7 @@ class Aircraft():
 
     def maneuver(self, exp_heading, exp_pitch, exp_speed): #k = conversion rate
         k_hdg, k_bank, k_aile = 2.0, 1.5, 0.5
-        k_pitch, k_elev = 3.0, 2.0
+        k_vs, k_elev = 3.0, 2.0
         k_speed, thrt_bias = 0.02, 0.5
         max_bank = np.radians(75.0)
 
@@ -98,9 +98,10 @@ class Aircraft():
         aile = np.clip(k_bank * bank_err - k_aile * roll_rate , -1.0, 1.0)
 
         #pitch
-        pitch_err = exp_pitch - self['attitude/theta-rad']
+        exp_vs = exp_speed * np.sin(exp_pitch)
+        vs = self['velocities/h-dot-fps'] * 0.3048
         pitch_rate = self['velocities/q-rad_sec']
-        elev = np.clip(-(k_pitch * pitch_err - k_elev * pitch_rate), -1.0, 1.0)
+        elev = np.clip(-(k_vs * (exp_vs - vs) - k_elev * pitch_rate), -1.0, 1.0)
 
         #speed
         spd_err = exp_speed - self['velocities/vt-fps'] * 0.3048
@@ -242,11 +243,11 @@ class F16Env(gym.Env):
         self.foe['ic/psi-true-deg'] = 0.0
         self.foe.run_ic()
 
-        
+        self.foe_hp = 1.0
         self.agent_hp = 1.0
         self.prev_obs_boresight_az = None
         self.prev_obs_boresight = None
-        obs = self._get_obs(self.me, self.bandit.pos, self.bandit.vel, self.bandit.hp)  #contains the 8 observation data from def _get_obs
+        obs = self._get_obs(self.me, self.foe.pos(), self.foe.vel(), self.foe_hp)  #contains the 8 observation data from def _get_obs
         #delete this self.prev_range_err = self.range_err()
         self.prev_boresight = self.boresight
         self.prev_gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
@@ -332,7 +333,7 @@ class F16Env(gym.Env):
 
         self.bandit.step(self.me.pos(), dt)
         
-        obs = self._get_obs(self.me, self.bandit.pos, self.bandit.vel, self.bandit.hp)
+        obs = self._get_obs(self.me, self.foe.pos(), self.foe.vel(), self.foe_hp)
 
         self.curr_step += 1
         alt_agl_m = self.me['position/h-agl-ft'] * 0.3048
@@ -376,7 +377,7 @@ class F16Env(gym.Env):
         in_wez = (self.boresight < self.gun_cone and self.gun_rmin <= self.range <= self.gun_rmax)
         if in_wez:
             damage = dt * (self.gun_rmin / self.range)
-            self.bandit.hp -= damage
+            self.foe_hp -= damage
             reward += self.k_damage * damage
         #wez bandit's configs
         foe_boresight = self.foe.boresight_to(self.me.pos())
@@ -401,7 +402,7 @@ class F16Env(gym.Env):
         self.prev_boresight = self.boresight
         reward += 0.4 * math.exp(-(self.boresight / aim_cone) ** 2)
 
-        win = bool(self.bandit.hp <= 0.0)
+        win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
         if crashed: reward -= 100
         if win: reward += 100.0
