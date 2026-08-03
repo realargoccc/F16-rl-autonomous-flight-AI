@@ -184,11 +184,11 @@ class F16Env(gym.Env):
 
         #foe spawn:
         if self.np_random.random() < 0.2: #20% heads on
-            self.spawn = "head on"
+            self.setup = "head_on"
             foe_range = 1800.0
             foe_heading = 180.0
         else:
-            self.spawn = "offensive"
+            self.setup = "offensive"
             foe_range = 700.0
             foe_heading = 0.0
 

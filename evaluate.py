@@ -34,7 +34,7 @@ def get_episode(model, vecnorm, raw, seed=None):
     rel_alt0 = float(raw.foe.pos()[2] - raw.me.pos()[2])
     turn_offset = float(raw.turn_offset)
     pitch_target = float(raw.pitch_target)
-    reset = str(raw.reset)
+    setup = str(raw.setup)
     start_time = raw.me.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
@@ -122,7 +122,7 @@ def get_episode(model, vecnorm, raw, seed=None):
         "rows": rows,
         "turn_offset": turn_offset,
         "pitch_target": pitch_target,
-        "reset": reset,
+        "setup": setup,
     }
     return summary
 
@@ -154,6 +154,7 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
 
     buckets = {"flee":[0,0], "beam +": [0,0], "beam -": [0,0]}
     pitches = {"climb": [0, 0], "level": [0, 0], "dive": [0, 0]}
+    setups = {"offensive": [0, 0], "head_on": [0, 0]}
     for e in episodes:
         pt = e["pitch_target"]
         k = "climb" if pt > 0.01 else ("dive" if pt < -0.01 else "level")
@@ -162,8 +163,6 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
         elif e["turn_offset"] > 0: name = "beam +"
         else: name = "beam -"
         buckets[name][0] += int(e["win"]); buckets[name][1] += 1
-        setups = {"offensive": [0, 0], "head_on": [0, 0]}
-    for e in episodes:
         setups[e["setup"]][0] += int(e["win"]); setups[e["setup"]][1] += 1
 
     for group in (buckets, pitches, setups):
