@@ -225,8 +225,14 @@ class F16Env(gym.Env):
         self.prev_heading = self.me['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
-        self.bandit.reset(self.np_random, self.me['position/h-sl-meters'])
+        #foe's tactic:
+        if self.np_random.random() < 0.35: #run away 
+            self.turn_offset = np.pi
+        else:
+            self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2 #beam 三九机动
+        self.pitch_target = float(self.np_random.choice([-1.0, 0.0, 1.0])) * np.radians(15.0) #descend, level, climb
 
+        self.nominal_speed = 300.0
         #Foe spawn configs
 
         foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)]) 
@@ -322,7 +328,7 @@ class F16Env(gym.Env):
     def step(self, action):
         los = self.me.pos() - self.foe.pos()
         exp_heading = np.arctan2(los[1], los[0]) + self.bandit.turn_offset
-        foe_action = self.foe.maneuver(exp_heading, self.bandit.pitch_target, self.bandit.nominal_speed)
+        foe_action = self.foe.maneuver(exp_heading, self.pitch_target, self.nominal_speed)
         self.foe.ctrl_input(foe_action)
         self.me.ctrl_input(action)
         #run 
@@ -330,8 +336,6 @@ class F16Env(gym.Env):
         self.me.run(self.sim_steps_per_action)
         self.foe.run(self.sim_steps_per_action)
         dt = self.me.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
-
-        self.bandit.step(self.me.pos(), dt)
         
         obs = self._get_obs(self.me, self.foe.pos(), self.foe.vel(), self.foe_hp)
 
