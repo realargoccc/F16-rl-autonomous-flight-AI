@@ -182,12 +182,22 @@ class F16Env(gym.Env):
             self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2 #beam 三九机动
         self.pitch_target = float(self.np_random.choice([-1.0, 0.0, 1.0])) * np.radians(15.0) #descend, level, climb
 
+        #foe spawn:
+        if self.np_random.random() < 0.2: #20% heads on
+            self.spawn = "head on"
+            foe_range = 1800.0
+            foe_heading = 180.0
+        else:
+            self.spawn = "offensive"
+            foe_range = 700.0
+            foe_heading = 0.0
+
         self.nominal_speed = 300.0
         #Foe spawn configs
 
         foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)]) 
         foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
-        self.foe['ic/lat-gc-deg'] = lat0 + 700.0 / 111320.0
+        self.foe['ic/lat-gc-deg'] = lat0 + foe_range / 111320.0
         self.foe['ic/long-gc-deg'] = lon0
         self.foe['ic/h-sl-ft'] = (self.me['position/h-sl-meters'] + foe_rel_alt) / 0.3048 #agent's perspective 
         self.foe['ic/vc-kts'] = 450.0
@@ -196,7 +206,7 @@ class F16Env(gym.Env):
         self.foe['propulsion/tank[1]/contents-lbs'] = 1500.0
         self.foe['propulsion/engine/set-running'] = 1.0
         self.foe['ic/phi-deg'] = 0.0
-        self.foe['ic/psi-true-deg'] = 0.0
+        self.foe['ic/psi-true-deg'] = foe_heading
         self.foe.run_ic()
 
         self.foe_hp = 1.0

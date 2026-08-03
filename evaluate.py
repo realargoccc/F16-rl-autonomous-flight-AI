@@ -33,6 +33,8 @@ def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
     rel_alt0 = float(raw.foe.pos()[2] - raw.me.pos()[2])
     turn_offset = float(raw.turn_offset)
+    pitch_target = float(raw.pitch_target)
+    reset = str(raw.reset)
     start_time = raw.me.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
@@ -119,6 +121,8 @@ def get_episode(model, vecnorm, raw, seed=None):
         "rel_alt_init": rel_alt0,
         "rows": rows,
         "turn_offset": turn_offset,
+        "pitch_target": pitch_target,
+        "reset": reset,
     }
     return summary
 
@@ -149,14 +153,23 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
               f"reward={episode['total_reward']:7.1f} ")
 
     buckets = {"flee":[0,0], "beam +": [0,0], "beam -": [0,0]}
+    pitches = {"climb": [0, 0], "level": [0, 0], "dive": [0, 0]}
     for e in episodes:
+        pt = e["pitch_target"]
+        k = "climb" if pt > 0.01 else ("dive" if pt < -0.01 else "level")
+        pitches[k][0] += int(e["win"]); pitches[k][1] += 1
         if e["turn_offset"] > 2.0: name = "flee"
         elif e["turn_offset"] > 0: name = "beam +"
         else: name = "beam -"
         buckets[name][0] += int(e["win"]); buckets[name][1] += 1
-    for name, (w, n) in buckets.items():
-        if n:
-            print(f" {name:>7}: {w}/{n} = {w/n:.0%}")
+        setups = {"offensive": [0, 0], "head_on": [0, 0]}
+    for e in episodes:
+        setups[e["setup"]][0] += int(e["win"]); setups[e["setup"]][1] += 1
+
+    for group in (buckets, pitches, setups):
+        for name, (w, n) in group.items():
+            if n:
+                print(f" {name:>9}: {w}/{n} = {w/n:.0%}")
 
     print(f"\nwin rate: {wins} / {num_episodes} = {wins/num_episodes:.0%}   "
           f"lower and win case: {low_wins} / {low_n}")
