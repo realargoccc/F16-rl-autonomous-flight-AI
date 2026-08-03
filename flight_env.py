@@ -277,7 +277,7 @@ class F16Env(gym.Env):
 
     def step(self, action):
         los = self.me.pos() - self.foe.pos()
-        exp_heading = np.arctan2(los[1], los[0]) + self.bandit.turn_offset
+        exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
         foe_action = self.foe.maneuver(exp_heading, self.pitch_target, self.nominal_speed)
         self.foe.ctrl_input(foe_action)
         self.me.ctrl_input(action)

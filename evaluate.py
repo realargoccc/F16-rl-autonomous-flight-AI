@@ -31,6 +31,8 @@ raw = F16Env()
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
+    rel_alt0 = float(raw.foe.pos()[2] - raw.me.pos()[2])
+    turn_offset = float(raw.turn_offset)
     start_time = raw.me.get_sim_time()
     total_reward = 0
     rows = []                   #create storage for later transition to CSV content
