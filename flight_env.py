@@ -117,7 +117,7 @@ class F16Env(gym.Env):
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(26,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
-        self.max_episodes_steps = 300
+        self.max_episodes_steps = 600
         self.curr_step = 0
         self.target_alt_ft = 10000.0
         self.sim_steps_per_action = 12
@@ -187,6 +187,7 @@ class F16Env(gym.Env):
             self.setup = "head_on"
             foe_range = 1800.0
             foe_heading = 180.0
+            self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2
         else:
             self.setup = "offensive"
             foe_range = 700.0
