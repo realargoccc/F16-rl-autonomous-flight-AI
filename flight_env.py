@@ -357,7 +357,7 @@ class F16Env(gym.Env):
         #closing cone policy 
         reward += 3.0 * (self.prev_boresight - self.boresight) # cone gradient — inert dead-ahead, matters off-boresight
         self.prev_boresight = self.boresight
-        reward += 0.4 * math.exp(-(self.boresight / aim_cone) ** 2)
+        reward += 0.05 * math.exp(-(self.boresight / aim_cone) ** 2)
 
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
