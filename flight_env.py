@@ -355,7 +355,7 @@ class F16Env(gym.Env):
             reward -= 0.02 * abs(self.closure)
 
         #closing cone policy 
-        reward += 3.0 * (self.prev_boresight - self.boresight) # cone gradient — inert dead-ahead, matters off-boresight
+        reward += 1.0 * (self.prev_boresight - self.boresight) # cone gradient — inert dead-ahead, matters off-boresight
         self.prev_boresight = self.boresight
         reward += 0.05 * math.exp(-(self.boresight / aim_cone) ** 2)
 
