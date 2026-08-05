@@ -236,24 +236,23 @@ class F16Env(gym.Env):
         self.closure = float(closure)
         self.boresight_az = float(boresight_az) #for eval logging
 
-        #LOS rate - lead pursuit logging
-        if self.prev_obs_boresight_az is None: # if no angle are observed by agent
-            self.prev_obs_boresight_az = boresight_az 
-            self.prev_obs_boresight = self.boresight
-        
-        dt_obs = me.get_delta_t() * self.sim_steps_per_action
-        scale = dt_obs * np.radians(30.0)
-        d_boresight_az = (boresight_az - self.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
+        #LOS roration rate - lead pursuit logging
+        phi = me['attitude/phi-rad']
+        right0 = np.array([-np.sin(heading_angle), np.cos(heading_angle), 0.0])
+        up0 = np.cross(nose_vec, right0)
+        body_right = right0 * np.cos(phi) - up0 * np.sin(phi)
+        body_up = right0 * np.sin(phi) + up0 * np.cos(phi)
 
-        boresight_az_rate = d_boresight_az / scale
-        boresight_rate = (self.boresight - self.prev_obs_boresight) / scale
+        #LOS rotation rate vector
+        rel_vel = foe_vel - agent_vel
+        omega = np.cross(relative_data, rel_vel) / (range*82 + 1e-9)
 
-        self.prev_obs_boresight_az = float(boresight_az)
-        self.prev_obs_boresight    = float(self.boresight)
+        scale = np.radians(30.0)
+        omega_yaw = float(np.dot(omega, body_up)) / scale
+        omega_pitch = float(np.dot(omega, body_right)) / scale
 
-        rel_vel = (foe_vel - agent_vel) / 300
         bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, self.boresight, 
-                                 boresight_az_rate, boresight_rate], dtype=np.float32)
+                                 omega_yaw, omega_pitch], dtype=np.float32)
         agent_state = np.array(
             [me['position/h-sl-meters'],          #altitude
             me['velocities/vc-fps'] * 0.3048,     #IAS
