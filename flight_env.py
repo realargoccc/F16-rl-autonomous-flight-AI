@@ -250,6 +250,8 @@ class F16Env(gym.Env):
         scale = np.radians(30.0)
         omega_yaw = float(np.dot(omega, body_up)) / scale
         omega_pitch = float(np.dot(omega, body_right)) / scale
+        self.omega_yaw = omega_yaw
+        self.omega_pitch = omega_pitch
 
         bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, self.boresight, 
                                  omega_yaw, omega_pitch], dtype=np.float32)
