@@ -7,10 +7,10 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, SubprocV
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
-model_load = "ppo_f16_eleva_v2.5.4.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v2.5.5.zip" 
-vecnorm_load = "vecnorm_eleva_v2.5.4.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v2.5.5.pkl"
+model_load = "ppo_f16_eleva_v2.5.5.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+model_path = "ppo_f16_eleva_v2.5.6.zip" 
+vecnorm_load = "vecnorm_eleva_v2.5.5.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+vecnorm_path = "vecnorm_eleva_v2.5.6.pkl"
 
 #sanity check 
 #env = F16Env()
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         model.policy.log_std.fill_(-0.7) # hard set the explore of each axis to 0.5 (avoiding bang bang)
-    model.learn(total_timesteps= 4_000_000,reset_num_timesteps=False, tb_log_name="v2.3.0") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
+    model.learn(total_timesteps= 3_000_000,reset_num_timesteps=False, tb_log_name="v2.3.0") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
     model.save(model_path)
     env.save(vecnorm_path)
 
