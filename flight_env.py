@@ -245,7 +245,7 @@ class F16Env(gym.Env):
 
         #LOS rotation rate vector
         rel_vel = foe_vel - agent_vel
-        omega = np.cross(relative_data, rel_vel) / (range*82 + 1e-9)
+        omega = np.cross(relative_data, rel_vel) / (range**2 + 1e-9)
 
         scale = np.radians(30.0)
         omega_yaw = float(np.dot(omega, body_up)) / scale
@@ -353,10 +353,14 @@ class F16Env(gym.Env):
         elif self.range < self.gun_rmin:
             reward -= 0.02 * abs(self.closure)
 
-        #closing cone policy 
-        reward += 1.0 * (self.prev_boresight - self.boresight) # cone gradient — inert dead-ahead, matters off-boresight
+        #approach: lead (提前量)
+        omega_mag = float(np.hypot(self.omega_yaw, self.omega_pitch))
+        if self.range > self.gun_rmax: #focus on lead (out of range)
+            reward -= 0.1 * omega_mag
+        else:                          #focus on gun cone (in range)
+            reward += 0.5 * (self.prev_boresight - self.boresight)
+            reward += 0.05 * math.exp(-(self.boresight / aim_cone) ** 2)
         self.prev_boresight = self.boresight
-        reward += 0.05 * math.exp(-(self.boresight / aim_cone) ** 2)
 
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
