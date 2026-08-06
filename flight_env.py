@@ -114,7 +114,7 @@ class F16Env(gym.Env):
         self.me = Aircraft()
         self.foe = Aircraft()
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(26,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(28,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 600
@@ -183,7 +183,7 @@ class F16Env(gym.Env):
         self.pitch_target = float(self.np_random.choice([-1.0, 0.0, 1.0])) * np.radians(15.0) #descend, level, climb
 
         #foe spawn:
-        if self.np_random.random() < 0.2:
+        if self.np_random.random() < 0.0:
             self.setup = "head_on"
             foe_range, foe_heading = 1800.0, 180.0
             foe_east = float(self.np_random.choice([-1.0, 1.0])) * 600.0 #spawn 600 meters apart
@@ -255,13 +255,28 @@ class F16Env(gym.Env):
         rel_vel = foe_vel - agent_vel
         omega = np.cross(relative_data, rel_vel) / (range**2 + 1e-9)
 
-        scale = np.radians(30.0)
-        omega_yaw = float(np.dot(omega, body_up)) / scale
-        omega_pitch = float(np.dot(omega, body_right)) / scale
+        omega_scale = np.radians(30.0)
+        omega_yaw = float(np.dot(omega, body_up)) / omega_scale
+        omega_pitch = float(np.dot(omega, body_right)) / omega_scale
         self.omega_yaw = omega_yaw
         self.omega_pitch = omega_pitch
 
-        bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, self.boresight, 
+        #boresight error rates
+        if self.prev_obs_boresight_az is None:
+            self.prev_obs_boresight_az = boresight_az
+            self.prev_obs_boresight = self.boresight
+
+        dt_obs = me.get_delta_t() * self.sim_steps_per_action
+        rate_scale = dt_obs * np.radians(30.0)
+        d_boresight_az = (boresight_az - self.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
+
+        boresight_az_rate = d_boresight_az / rate_scale
+        boresight_rate = (self.boresight - self.prev_obs_boresight) / rate_scale
+
+        self.prev_obs_boresight_az = float(boresight_az)
+        self.prev_obs_boresight = float(self.boresight)
+
+        bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, self.boresight, boresight_az_rate, boresight_rate,
                                  omega_yaw, omega_pitch], dtype=np.float32)
         agent_state = np.array(
             [me['position/h-sl-meters'],          #altitude
@@ -363,14 +378,10 @@ class F16Env(gym.Env):
         elif self.range < self.gun_rmin:
             reward -= 0.02 * abs(self.closure)
 
-        #approach: lead (提前量)
-        omega_mag = float(np.hypot(self.omega_yaw, self.omega_pitch))
-        if self.range > self.gun_rmax: #focus on lead (out of range)
-            reward -= 0.1 * omega_mag
-        else:                          #focus on gun cone (in range)
-            reward += 0.5 * (self.prev_boresight - self.boresight)
-            reward += 0.05 * math.exp(-(self.boresight / aim_cone) ** 2)
+        #closing cone 
+        reward += 3.0 * (self.prev_boresight - self.boresight)
         self.prev_boresight = self.boresight
+        reward += 0.4 * math.exp(-(self.boresight / aim_cone) ** 2)
 
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
