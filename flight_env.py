@@ -129,18 +129,8 @@ class F16Env(gym.Env):
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
-        self.range_band = (700.0, 700.0)
+        self.range_band = (700.0, 1200.0)
 
-
-        '''
-        #Missile configs (aim9x)
-        sound_mps = 300.0 #speed of sound (m/s, mach) universal number for 10k - 30k ft
-        self.missile_speed_max = 3.0 * sound_mps #max speed m/s
-        self.max_flight_time = 30.0 #second
-        self.lethal_radius = 7.0    #meters
-        self.missile_count = 1   
-        self.missile_max_g = 40.0 
-        '''
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
         #agent data
