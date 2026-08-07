@@ -324,9 +324,6 @@ class F16Env(gym.Env):
         self.turned += delta_turn
         self.prev_heading = curr_heading
 
-        #reward computations
-        reward = -0.1
-
         # constraint rails — flat interior, wall at the edge
         if speed_knots < 350:
             reward -= 0.01 * (350 - speed_knots)
@@ -364,16 +361,9 @@ class F16Env(gym.Env):
         reward += 0.1 * (self.prev_gap - gap)
         self.prev_gap = gap
 
-        #closure policy
-        if self.range > self.gun_rmax:
-            reward += 0.01 * self.closure
-        elif self.range < self.gun_rmin:
-            reward -= 0.02 * abs(self.closure)
-
         #closing cone 
         reward += 3.0 * (self.prev_boresight - self.boresight)
         self.prev_boresight = self.boresight
-        reward += 0.4 * math.exp(-(self.boresight / aim_cone) ** 2)
 
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
