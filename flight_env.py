@@ -324,6 +324,7 @@ class F16Env(gym.Env):
         self.turned += delta_turn
         self.prev_heading = curr_heading
 
+        reward = 0.0
         # constraint rails — flat interior, wall at the edge
         if speed_knots < 350:
             reward -= 0.01 * (350 - speed_knots)
@@ -358,7 +359,7 @@ class F16Env(gym.Env):
 
         #closing gap policy 
         gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
-        reward += 0.1 * (self.prev_gap - gap)
+        reward += 0.2 * (self.prev_gap - gap)
         self.prev_gap = gap
 
         #closing cone 
