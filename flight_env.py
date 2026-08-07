@@ -84,7 +84,7 @@ class Aircraft():
 
     def maneuver(self, exp_heading, exp_pitch, exp_speed): #k = conversion rate
         k_hdg, k_bank, k_aile = 2.0, 1.5, 0.5
-        k_vs, k_elev = 3.0, 2.0
+        k_vs, k_elev = 0.03, 1.5
         k_speed, thrt_bias = 0.02, 0.5
         max_bank = np.radians(75.0)
 
@@ -98,7 +98,8 @@ class Aircraft():
         aile = np.clip(k_bank * bank_err - k_aile * roll_rate , -1.0, 1.0)
 
         #pitch
-        exp_vs = exp_speed * np.sin(exp_pitch)
+        v_true = self['velocities/vt-fps'] * 0.3048
+        exp_vs = v_true * np.sin(exp_pitch)
         vs = self['velocities/h-dot-fps'] * 0.3048
         pitch_rate = self['velocities/q-rad_sec']
         elev = np.clip(-(k_vs * (exp_vs - vs) - k_elev * pitch_rate), -1.0, 1.0)
@@ -128,6 +129,7 @@ class F16Env(gym.Env):
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
+        self.range_band = (700.0, 700.0)
 
 
         '''
@@ -190,7 +192,7 @@ class F16Env(gym.Env):
             self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2 #beam in merge
         else:
             self.setup = "offensive"
-            foe_range = 700.0
+            foe_range = float(self.np_random.uniform(*self.range_band))
             foe_heading = 0.0
             foe_east = 0.0
         self.nominal_speed = 300.0
