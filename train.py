@@ -12,8 +12,6 @@ model_path = "ppo_f16_eleva_v2.6.0.zip"
 vecnorm_load = "vecnorm_eleva_v2.5.9.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
 vecnorm_path = "vecnorm_eleva_v2.6.0.pkl"
 
-#sanity check 
-#env = F16Env()
 if __name__ == "__main__":
     check_env(F16Env())
     env = SubprocVecEnv([lambda: Monitor(F16Env()) for _ in range(8)])   #auto wrap 
