@@ -20,12 +20,12 @@ Only run once per obs dim size change
 old_model must be the latest trained model 
 """
 
-old_model = "ppo_f16_eleva_v2.5.2.zip"
-old_vec = "vecnorm_eleva_v2.5.2.pkl"
-new_model = "ppo_f16_eleva_v2.5.7.zip"
-new_vec = "vecnorm_eleva_v2.5.7.pkl"
+old_model = "ppo_f16_eleva_v2.6.6.zip"
+old_vec = "vecnorm_eleva_v2.6.6.pkl"
+new_model = "ppo_f16_eleva_v2.6.7.zip"
+new_vec = "vecnorm_eleva_v2.6.7.pkl"
 
-old_dim, new_dim = 26, 28
+old_dim, new_dim = 28, 29
 
 assert os.path.exists(old_model), f"missing {old_model}"
 assert os.path.exists(old_vec),   f"missing {old_vec}"
