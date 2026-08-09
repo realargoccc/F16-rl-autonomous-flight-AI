@@ -131,7 +131,7 @@ class F16Env(gym.Env):
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
-        self.range_band = (700.0, 1200.0)
+        self.range_band = (700.0, 1800.0)
         self.climb_deg = 15.0
         self.dive_deg = 8.0
 
