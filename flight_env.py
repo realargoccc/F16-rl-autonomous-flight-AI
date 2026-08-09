@@ -18,6 +18,7 @@ class Aircraft():
         self.elev_cmd = 0.0
         self.aile_cmd = 0.0
         self.rudd_cmd = 0.0
+        self.thr_cmd = 0.0
 
     def __getitem__(self, k): #self.me for bandit, self.fdm for agent
         return self.fdm[k]
@@ -28,6 +29,7 @@ class Aircraft():
     def run_ic(self):
         self.fdm.run_ic()
         self.elev_cmd = self.aile_cmd = self.rudd_cmd = 0.0
+        self.thr_cmd = 0.5
 
     def get_delta_t(self): 
         return self.fdm.get_delta_t()
@@ -70,11 +72,12 @@ class Aircraft():
                          self.fdm['velocities/v-east-fps'] * 0.3048,
                         -self.fdm['velocities/v-down-fps'] * 0.3048])
 
-    def ctrl_input(self, action, rate=0.25):
+    def ctrl_input(self, action, thr_rate=0.1, rate=0.25):
         self.elev_cmd += np.clip(float(action[1]) - self.elev_cmd, -rate, rate)
         self.aile_cmd += np.clip(float(action[2]) - self.aile_cmd, -rate, rate)
         self.rudd_cmd += np.clip(float(action[3]) - self.rudd_cmd, -rate, rate)
-
+        self.thr_cmd  += np.clip(float((action[0] + 1.0) / 2.0) - self.thr_cmd, -thr_rate, thr_rate)
+        
         self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
         self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
         self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
