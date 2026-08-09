@@ -72,12 +72,12 @@ class Aircraft():
                          self.fdm['velocities/v-east-fps'] * 0.3048,
                         -self.fdm['velocities/v-down-fps'] * 0.3048])
 
-    def ctrl_input(self, action, thr_rate=0.1, rate=0.25):
+    def ctrl_input(self, action, thr_rate=0.1, rate=0.5):
         self.elev_cmd += np.clip(float(action[1]) - self.elev_cmd, -rate, rate)
         self.aile_cmd += np.clip(float(action[2]) - self.aile_cmd, -rate, rate)
         self.rudd_cmd += np.clip(float(action[3]) - self.rudd_cmd, -rate, rate)
         self.thr_cmd  += np.clip(float((action[0] + 1.0) / 2.0) - self.thr_cmd, -thr_rate, thr_rate)
-        
+
         self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
         self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
         self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
@@ -132,6 +132,8 @@ class F16Env(gym.Env):
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
         self.range_band = (700.0, 1200.0)
+        self.climb_deg = 15.0
+        self.dive_deg = 8.0
 
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
@@ -174,7 +176,9 @@ class F16Env(gym.Env):
             self.turn_offset = np.pi
         else:
             self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2 #beam 三九机动
-        self.pitch_target = float(self.np_random.choice([-1.0, 0.0, 1.0])) * np.radians(15.0) #descend, level, climb
+        sign = float(self.np_random.choice([-1.0, 0.0, 1.0]))
+        mag = self.dive_deg if sign < 0 else self.climb_deg
+        self.pitch_target = sign * np.radians(mag) #descend, level, climb
 
         #foe spawn:
         if self.np_random.random() < 0.0:
