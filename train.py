@@ -32,7 +32,7 @@ if __name__ == "__main__":
     #model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 0.03, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
 
     with torch.no_grad():
-        model.policy.log_std.fill_(max=-0.5) # hard set the explore of each axis to 0.5 (avoiding bang bang)
+        model.policy.log_std.clamp_(max=-0.5) # hard set the explore of each axis to 0.5 (avoiding bang bang)
     model.learn(total_timesteps= 3_000_000,reset_num_timesteps=False, tb_log_name="v2.3.0") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
     model.save(model_path)
     env.save(vecnorm_path)
