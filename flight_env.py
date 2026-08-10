@@ -131,7 +131,8 @@ class F16Env(gym.Env):
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
-        self.range_band = (700.0, 1800.0)
+        self.range_band = (700.0, 1200.0)
+        self.aspect_band = (0.0, 60.0)
         self.climb_deg = 15.0
         self.dive_deg = 8.0
 
@@ -181,16 +182,12 @@ class F16Env(gym.Env):
         self.pitch_target = sign * np.radians(mag) #descend, level, climb
 
         #foe spawn:
-        if self.np_random.random() < 0.0:
-            self.setup = "head_on"
-            foe_range, foe_heading = 1800.0, 180.0
-            foe_east = float(self.np_random.choice([-1.0, 1.0])) * 600.0 #spawn 600 meters apart
-            self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2 #beam in merge
-        else:
-            self.setup = "offensive"
-            foe_range = float(self.np_random.uniform(*self.range_band))
-            foe_heading = 0.0
-            foe_east = 0.0
+        self.setup = "offensive"
+        foe_range = float(self.np_random.uniform(*self.range_band))
+        aspect_sign = float(self.np_random.choice([-1.0, 1.0]))
+        self.spawn_aspect = aspect_sign * float(self.np_random.uniform(*self.aspect_band))
+        foe_heading = self.spawn_aspect % 360.0
+        foe_east = 0.0
         self.nominal_speed = 300.0
 
         #Foe spawn configs
