@@ -176,7 +176,9 @@ class F16Env(gym.Env):
         if self.np_random.random() < 0.35: #run away 
             self.turn_offset = np.pi
         else:
-            self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2 #beam 三九机动
+            s = 1.0 if self.np_random.random() < 0.7 else -1.0
+            self.turn_offset = s * np.pi/2 #beam 三九机动
+
         sign = float(self.np_random.choice([-1.0, 0.0, 1.0]))
         mag = self.dive_deg if sign < 0 else self.climb_deg
         self.pitch_target = sign * np.radians(mag) #descend, level, climb
