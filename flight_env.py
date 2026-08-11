@@ -73,12 +73,8 @@ class Aircraft():
                         -self.fdm['velocities/v-down-fps'] * 0.3048])
 
     def ctrl_input(self, action, thr_rate=0.1, rate=0.5):
-        exp_bank = float(action[2]) * np.radians(80.0)
-        bank_err = exp_bank - self.fdm['attitude/phi-rad']
-        aile_cmd = float(np.clip(1.5 * bank_err - 0.5 * self.fdm['velocities/p-rad_sec'], -1.0, 1.0))
-
         self.elev_cmd += np.clip(float(action[1]) - self.elev_cmd, -rate, rate)
-        self.aile_cmd += np.clip(aile_cmd - self.aile_cmd, -rate, rate)
+        self.aile_cmd += np.clip(float(action[2]) - self.aile_cmd, -rate, rate)
         self.rudd_cmd += np.clip(float(action[3]) - self.rudd_cmd, -rate, rate)
         self.thr_cmd  += np.clip(float((action[0] + 1.0) / 2.0) - self.thr_cmd, -thr_rate, thr_rate)
 
@@ -89,7 +85,7 @@ class Aircraft():
         self.fdm['gear/gear-cmd-norm'] = 0.0
 
     def maneuver(self, exp_heading, exp_pitch, exp_speed): #k = conversion rate
-        k_hdg = 2.0
+        k_hdg, k_bank, k_aile = 2.0, 1.5, 0.5
         k_vs, k_elev = 0.03, 1.5
         k_speed, thrt_bias = 0.02, 0.5
         max_bank = np.radians(75.0)
@@ -98,6 +94,12 @@ class Aircraft():
         heading_err = (exp_heading - self['attitude/psi-rad'] + np.pi) % (2*np.pi) - np.pi
         exp_bank = np.clip(k_hdg * heading_err, -max_bank, max_bank)
         bank_norm = float(np.clip(exp_bank / np.radians(80.0), -1.0, 1.0))
+
+        #bank
+        exp_bank = np.clip(k_hdg * heading_err, -max_bank, max_bank)
+        bank_err = exp_bank - self['attitude/phi-rad']
+        roll_rate = self['velocities/p-rad_sec']
+        aile = np.clip(k_bank * bank_err - k_aile * roll_rate, -1.0, 1.0)
 
         #pitch
         v_true = self['velocities/vt-fps'] * 0.3048
@@ -110,7 +112,7 @@ class Aircraft():
         spd_err = exp_speed - self['velocities/vt-fps'] * 0.3048
         throttle = np.clip(thrt_bias + k_speed * spd_err, 0.0, 1.0) * 2.0 - 1.0
 
-        return np.array([throttle, elev, bank_norm, 0.0], dtype=np.float32)
+        return np.array([throttle, elev, aile, 0.0], dtype=np.float32)
 
 class F16Env(gym.Env):
     def __init__(self):
