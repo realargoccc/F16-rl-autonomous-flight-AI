@@ -73,12 +73,16 @@ class Aircraft():
                         -self.fdm['velocities/v-down-fps'] * 0.3048])
 
     def ctrl_input(self, action, thr_rate=0.1, rate=0.5):
+        exp_bank = float(action[2]) * np.radians(80.0)
+        bank_err = exp_bank - self.fdm['attitude/phi-rad']
+        aile_cmd = float(np.clip(1.5 * bank_err - 0.5 * self.fdm['velocities/p-rad_sec'], -1.0, 1.0))
+
         self.elev_cmd += np.clip(float(action[1]) - self.elev_cmd, -rate, rate)
-        self.aile_cmd += np.clip(float(action[2]) - self.aile_cmd, -rate, rate)
+        self.aile_cmd += np.clip(aile_cmd - self.aile_cmd, -rate, rate)
         self.rudd_cmd += np.clip(float(action[3]) - self.rudd_cmd, -rate, rate)
         self.thr_cmd  += np.clip(float((action[0] + 1.0) / 2.0) - self.thr_cmd, -thr_rate, thr_rate)
 
-        self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
+        self.fdm['fcs/throttle-cmd-norm'] = self.thr_cmd
         self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
         self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
         self.fdm['fcs/rudder-cmd-norm'] = self.rudd_cmd
@@ -176,8 +180,7 @@ class F16Env(gym.Env):
         if self.np_random.random() < 0.35: #run away 
             self.turn_offset = np.pi
         else:
-            s = 1.0 if self.np_random.random() < 0.7 else -1.0
-            self.turn_offset = s * np.pi/2 #beam 三九机动
+            self.turn_offset = float(self.np_random.choice([-1.0, 1.0])) * np.pi/2 #beam 三九机动
 
         sign = float(self.np_random.choice([-1.0, 0.0, 1.0]))
         mag = self.dive_deg if sign < 0 else self.climb_deg
