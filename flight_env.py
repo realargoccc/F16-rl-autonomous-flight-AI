@@ -78,7 +78,7 @@ class Aircraft():
         self.rudd_cmd += np.clip(float(action[3]) - self.rudd_cmd, -rate, rate)
         self.thr_cmd  += np.clip(float((action[0] + 1.0) / 2.0) - self.thr_cmd, -thr_rate, thr_rate)
 
-        self.fdm['fcs/throttle-cmd-norm'] = self.thr_cmd
+        self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
         self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
         self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
         self.fdm['fcs/rudder-cmd-norm'] = self.rudd_cmd
@@ -134,7 +134,7 @@ class F16Env(gym.Env):
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
         self.range_band = (700.0, 1200.0)
-        self.aspect_band = (0.0, 60.0)
+        self.aspect_band = (0.0, 80.0)
         self.climb_deg = 15.0
         self.dive_deg = 8.0
 
