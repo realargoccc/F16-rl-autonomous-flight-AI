@@ -81,7 +81,7 @@ class Aircraft():
         self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
         self.fdm['fcs/elevator-cmd-norm'] = self.elev_cmd
         self.fdm['fcs/aileron-cmd-norm'] = self.aile_cmd
-        self.fdm['fcs/rudder-cmd-norm'] = self.rudd_cmd
+        self.fdm['fcs/rudder-cmd-norm'] = 0.0
         self.fdm['gear/gear-cmd-norm'] = 0.0
 
     def maneuver(self, exp_heading, exp_pitch, exp_speed): #k = conversion rate
@@ -133,6 +133,7 @@ class F16Env(gym.Env):
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
+        self.mirror_obs = np.array([6, 7, 11, 12, 14, 15, 19, 24, 26])
         self.range_band = (700.0, 1200.0)
         self.aspect_band = (0.0, 80.0)
         self.climb_deg = 15.0
@@ -174,6 +175,7 @@ class F16Env(gym.Env):
         self.prev_heading = self.me['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
+        self.mirror = bool(self.np_random.random() < 0.5)
         #foe's tactic:
         if self.np_random.random() < 0.35: #run away 
             self.turn_offset = np.pi
@@ -302,8 +304,10 @@ class F16Env(gym.Env):
             self.agent_hp,    
             ], dtype = np.float32
         )
-
-        return np.concatenate([agent_state, bandit_state])
+        obs = np.concatenate([agent_state, bandit_state])
+        if self.mirror:
+            obs[self.mirror_obs] *= -1.0
+        return obs
 
     def step(self, action):
         los = self.me.pos() - self.foe.pos()
@@ -347,9 +351,9 @@ class F16Env(gym.Env):
             reward -= 0.5 * (-1.0 - curr_g)**2
 
         #punish huge oscillation 
-        a_t = np.asarray(action[1:4], dtype = np.float32)
-        a_t1 = self.prev_action[1:4]
-        a_t2 = self.prev_prev_action[1:4]
+        a_t = np.asarray(action[0:4], dtype = np.float32)
+        a_t1 = self.prev_action[0:4]
+        a_t2 = self.prev_prev_action[0:4]
 
         reward -= 0.02 * float(np.sum((a_t - a_t1) ** 2))   #rate punishement (一阶差)
         reward -= 0.15 * float(np.sum((a_t - 2.0 * a_t1 + a_t2) ** 2))  #curvature punishment (二阶差)
