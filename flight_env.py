@@ -175,7 +175,7 @@ class F16Env(gym.Env):
         self.prev_heading = self.me['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
-        self.mirror = bool(self.np_random.random() < 0.5)
+        self.mirror = False#bool(self.np_random.random() < 0.5)
         #foe's tactic:
         if self.np_random.random() < 0.35: #run away 
             self.turn_offset = np.pi
