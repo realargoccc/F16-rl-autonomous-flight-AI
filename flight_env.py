@@ -75,7 +75,7 @@ class Aircraft():
     def ctrl_input(self, action, thr_rate=0.1, rate=0.5):
         self.elev_cmd += np.clip(float(action[1]) - self.elev_cmd, -rate, rate)
         self.aile_cmd += np.clip(float(action[2]) - self.aile_cmd, -rate, rate)
-        self.rudd_cmd += np.clip(float(action[3]) - self.rudd_cmd, -rate, rate)
+        self.rudd_cmd = 0.0
         self.thr_cmd  += np.clip(float((action[0] + 1.0) / 2.0) - self.thr_cmd, -thr_rate, thr_rate)
 
         self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
@@ -133,7 +133,7 @@ class F16Env(gym.Env):
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
-        self.mirror_obs = np.array([6, 7, 11, 12, 14, 15, 19, 24, 26])
+        self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
         self.range_band = (700.0, 1200.0)
         self.aspect_band = (0.0, 80.0)
         self.climb_deg = 15.0
@@ -310,6 +310,10 @@ class F16Env(gym.Env):
         return obs
 
     def step(self, action):
+        action = np.asarray(action, dtype=np.float32).copy()
+        if self.mirror:
+            action[2] *= -1.0
+            action[3] *= -1.0
         los = self.me.pos() - self.foe.pos()
         exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
         foe_action = self.foe.maneuver(exp_heading, self.pitch_target, self.nominal_speed)
