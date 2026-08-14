@@ -194,22 +194,22 @@ def show_pairs(rows_a, rows_b, ver_a, ver_b):
         if ca > 0:
             print(f"{t:16}{str(wa) + '/' + str(ca):>10}{str(wb) + '/' + str(cb):>10}")
 
-    rows_main = run_sweep(model_version)
-    display(model_version, rows_main)
+rows_main = run_sweep(model_version)
+display(model_version, rows_main)
 
-    if compare_vers is not None:
-        rows_other = run_sweep(compare_vers)
-        display(compare_vers, rows_other)
-        show_pairs(rows_main, rows_other, model_version, compare_vers)
+if compare_vers is not None:
+    rows_other = run_sweep(compare_vers)
+    display(compare_vers, rows_other)
+    show_pairs(rows_main, rows_other, model_version, compare_vers)
+else:
+    wins = 0
+    for r in rows_main:
+        if r["win"]:
+            wins += 1
+    got = wins / len(rows_main)
+    delta = got - baseline
+    print("")
+    if abs(delta) < tol:
+        print(f"regression: {got:.0%} vs baseline {baseline:.0%} ({delta:+.1%})  PASS")
     else:
-        wins = 0
-        for r in rows_main:
-            if r["win"]:
-                wins += 1
-        got = wins / len(rows_main)
-        delta = got - baseline
-        print("")
-        if abs(delta) < tol:
-            print(f"regression: {got:.0%} vs baseline {baseline:.0%} ({delta:+.1%})  PASS")
-        else:
-            print(f"regression: {got:.0%} vs baseline {baseline:.0%} ({delta:+.1%})  FAIL")
+        print(f"regression: {got:.0%} vs baseline {baseline:.0%} ({delta:+.1%})  FAIL")
