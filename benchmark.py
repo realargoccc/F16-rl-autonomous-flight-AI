@@ -84,4 +84,25 @@ def run_sweep(tag):
                         "foe_hp": float(raw.foe_hp),
                         "medbs": medbs,})
     return rows
-    
+
+#helpers
+def count_cell(rows, key, value):
+    w = 0
+    n = 0
+    for r in rows:
+        if r[key] == value:
+            n += 1
+            if r["win"]:
+                w += 1
+    return w, n
+
+def count_pair(rows, tac, pit):
+    w = 0
+    n = 0
+    for r in rows:
+        if r["tac"] == tac and r["pit"] == pit:
+            n += 1
+            if r["win"]:
+                w += 1
+    return w, n
+
