@@ -106,3 +106,33 @@ def count_pair(rows, tac, pit):
                 w += 1
     return w, n
 
+def display(ver, rows):
+    wins = 0
+    crashes = 0
+    never_wez = 0
+    for r in rows:
+        if r["win"]: wins += 1
+        if r["crashed"]: crashes += 1
+        if r["dwell"] == 0: never_wez += 1
+    n = len(rows)
+    print("")
+    print("=== " + ver + " ===  n=" + str(n))
+    print(f"overall {wins}/{n} = {wins/n:.0%}   crashed {crashes/n:.0%}   timeout {(n-wins-crashes)/n:.0%}   never in wez {never_wez/n:.0%}")
+    print("")
+    header = "        "
+    for p in pitches:
+        header += f"{p:>10}"
+    header += "     total"
+    print(header)
+
+    for t in tactics:
+        line = f"{t:8}"
+        for p in pitches:
+            w, c = count_pair(rows, t, p)
+            if c > 0:
+                line += f"{str(w) + '/' + str(c):>10}"
+            else:
+                line += f"{'-':>10}"
+        w, c = count_cell(rows, "tac", t)
+        line += f"{str(w) + '/' + str(c):>10}"
+        print(line)
