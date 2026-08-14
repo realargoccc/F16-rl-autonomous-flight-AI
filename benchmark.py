@@ -181,3 +181,35 @@ def show_pairs(rows_a, rows_b, ver_a, ver_b):
     print("")
     print("=== paired " + ver_a + " vs " + ver_b + " ===")
     print(f"{ver_a} only {a_only}   {ver_b} only {b_only}   McNemar chi2 = {chi2:.2f}   (3.84 = p<0.05)")
+    print("")
+    print(f"{'cell':16}{ver_a:>10}{ver_b:>10}")
+    for a in aspect_names:
+        wa, ca = count_cell(rows_a, "asp", a)
+        wb, cb = count_cell(rows_b, "asp", a)
+        if ca > 0:
+            print(f"{'aspect ' + a:16}{str(wa) + '/' + str(ca):>10}{str(wb) + '/' + str(cb):>10}")
+    for t in tactics:
+        wa, ca = count_cell(rows_a, "tac", t)
+        wb, cb = count_cell(rows_b, "tac", t)
+        if ca > 0:
+            print(f"{t:16}{str(wa) + '/' + str(ca):>10}{str(wb) + '/' + str(cb):>10}")
+
+    rows_main = run_sweep(model_version)
+    display(model_version, rows_main)
+
+    if compare_vers is not None:
+        rows_other = run_sweep(compare_vers)
+        display(compare_vers, rows_other)
+        show_pairs(rows_main, rows_other, model_version, compare_vers)
+    else:
+        wins = 0
+        for r in rows_main:
+            if r["win"]:
+                wins += 1
+        got = wins / len(rows_main)
+        delta = got - baseline
+        print("")
+        if abs(delta) < tol:
+            print(f"regression: {got:.0%} vs baseline {baseline:.0%} ({delta:+.1%})  PASS")
+        else:
+            print(f"regression: {got:.0%} vs baseline {baseline:.0%} ({delta:+.1%})  FAIL")
