@@ -136,3 +136,48 @@ def display(ver, rows):
         w, c = count_cell(rows, "tac", t)
         line += f"{str(w) + '/' + str(c):>10}"
         print(line)
+
+    print("")
+    line = "aspect  "
+    for a in aspect_names:
+        line += f"{a:>10}"
+    print(line)
+    line = "        "
+    for a in aspect_names:
+        w, c = count_cell(rows, "asp", a)
+        if c > 0:
+            line += f"{str(w) + '/' + str(c):>10}"
+        else:
+            line += f"{'-':>10}"
+    print(line)
+
+    #loss 
+    losses = []
+    for r in rows:
+        if not r["win"]:
+            losses.append(r)
+    if len(losses) > 0:
+        medbs = np.nanmean([r["medbs"] for r in losses])    #median boresight
+        minr = np.mean([r["min_range"] for r in losses])
+        dwell = np.mean([r["dwell"] for r in losses])
+        hp = np.mean([r["foe_hp"] for r in losses])
+        print("")
+        print(f"losses n={len(losses)}:  medbs {medbs:.1f}deg   min_range {minr:.0f}m   dwell {dwell:.0f}   foe_hp {hp:.2f}")
+
+#comparison between two runs
+def show_pairs(rows_a, rows_b, ver_a, ver_b):
+    a_only = 0
+    b_only = 0
+    for i in range(len(rows_a)):
+        if rows_a[i]["win"] and not rows_b[i]["win"]:
+            a_only += 1
+        if rows_b[i]["win"] and not rows_a[i]["win"]:
+            b_only += 1
+    disc = a_only + b_only #case when one side win
+    if disc > 0: #is the win difference significant
+        diff_mag = (abs(a_only - b_only) - 1) ** 2 / disc
+    else:
+        diff_mag = 0.0
+    print("")
+    print("=== paired " + ver_a + " vs " + ver_b + " ===")
+    print(f"{ver_a} only {a_only}   {ver_b} only {b_only}   McNemar chi2 = {chi2:.2f}   (3.84 = p<0.05)")
