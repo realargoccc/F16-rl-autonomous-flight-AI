@@ -75,7 +75,7 @@ class Aircraft():
     def ctrl_input(self, action, thr_rate=0.1, rate=0.5):
         self.elev_cmd += np.clip(float(action[1]) - self.elev_cmd, -rate, rate)
         self.aile_cmd += np.clip(float(action[2]) - self.aile_cmd, -rate, rate)
-        self.rudd_cmd = 0.0
+        self.rudd_cmd += np.clip(float(action[3]) - self.rudd_cmd, -rate, rate)
         self.thr_cmd  += np.clip(float((action[0] + 1.0) / 2.0) - self.thr_cmd, -thr_rate, thr_rate)
 
         self.fdm['fcs/throttle-cmd-norm'] = float((action[0] + 1.0) / 2.0)
@@ -175,7 +175,8 @@ class F16Env(gym.Env):
         self.prev_heading = self.me['attitude/psi-rad']
         self.turned = 0.0   #accumulator
         self.prev_pitch_rate = 0.0
-        self.mirror = False#bool(self.np_random.random() < 0.5)
+        #bool(self.np_random.random() < 0.5)
+        self.mirror = False  
         #foe's tactic:
         if self.np_random.random() < 0.35: #run away 
             self.turn_offset = np.pi
