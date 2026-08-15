@@ -180,7 +180,7 @@ def show_pairs(rows_a, rows_b, ver_a, ver_b):
         diff_mag = 0.0
     print("")
     print("=== paired " + ver_a + " vs " + ver_b + " ===")
-    print(f"{ver_a} only {a_only}   {ver_b} only {b_only}   McNemar chi2 = {chi2:.2f}   (3.84 = p<0.05)")
+    print(f"{ver_a} only {a_only}   {ver_b} only {b_only}   McNemar chi2 = {diff_mag:.2f}   (3.84 = p<0.05)")
     print("")
     print(f"{'cell':16}{ver_a:>10}{ver_b:>10}")
     for a in aspect_names:
