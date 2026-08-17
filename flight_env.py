@@ -169,10 +169,6 @@ class F16Env(gym.Env):
        
 
         self.curr_step = 0
-        self.prev_elev = 0.0
-        self.prev_aile = 0.0
-        self.prev_rudder = 0.0
-        self.prev_throttle = 0.0
         self.prev_action = np.zeros(4, dtype=np.float32) #currently 4 actions in action space
         self.prev_prev_action = np.zeros(4, dtype=np.float32)
 
@@ -223,9 +219,7 @@ class F16Env(gym.Env):
 
         self.foe_hp = 1.0
         self.agent_hp = 1.0
-        self.prev_obs_boresight_az = None
-        self.prev_obs_boresight = None
-        obs = self._get_obs(self.me, self.foe.pos(), self.foe.vel(), self.foe_hp)  #contains the 8 observation data from def _get_obs
+        obs = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)  #contains the 8 observation data from def _get_obs
         #delete this self.prev_range_err = self.range_err()
         self.prev_boresight = self.boresight
         self.prev_gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
@@ -336,7 +330,7 @@ class F16Env(gym.Env):
         self.foe.run(self.sim_steps_per_action)
         dt = self.me.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
         
-        obs = self._get_obs(self.me, self.foe.pos(), self.foe.vel(), self.foe_hp)
+        obs = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)
 
         self.curr_step += 1
         alt_agl_m = self.me['position/h-agl-ft'] * 0.3048
@@ -405,10 +399,10 @@ class F16Env(gym.Env):
         terminated = crashed or lose or win
 
         # bookkeeping — feeds the observation
-        self.prev_elev, self.prev_aile = self.me.elev_cmd, self.me.aile_cmd
+        self.me.prev_elev, self.me.prev_aile = self.me.elev_cmd, self.me.aile_cmd
+        self.me.prev_rudder, self.me.prev_throttle = self.me.rudd_cmd, action[0]
         self.prev_prev_action = self.prev_action.copy()
         self.prev_action = np.array(action, dtype=np.float32)
-        self.prev_rudder, self.prev_throttle = self.me.rudd_cmd, action[0]
         
         info = {}
         return obs, float(reward), terminated, truncated, info    
