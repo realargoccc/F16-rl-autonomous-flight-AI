@@ -24,8 +24,8 @@ class Aircraft():
     def reset_obs_memory(self):
         self.prev_elev = 0.0
         self.prev_aile = 0.0
-        self.prev_rudd = 0.0
-        self.prev_throt = 0.0
+        self.prev_rudder = 0.0
+        self.prev_throttle = 0.0
         self.prev_obs_boresight_az = None
         self.prev_obs_boresight = None
 
@@ -123,6 +123,12 @@ class Aircraft():
         throttle = np.clip(thrt_bias + k_speed * spd_err, 0.0, 1.0) * 2.0 - 1.0
 
         return np.array([throttle, elev, aile, 0.0], dtype=np.float32)
+
+class ObsState():
+    #what get obs used to write onto the env, now one instance per observer
+    __slots__ = ("range", "boresight", "boresight_az", "closure", "omega_yaw", "omega_pitch", "aspect_angle")
+
+
 
 class F16Env(gym.Env):
     def __init__(self):
@@ -239,15 +245,12 @@ class F16Env(gym.Env):
         nose_vec = np.array([np.cos(pitch_angle) * np.cos(heading_angle),   #North
                              np.cos(pitch_angle) * np.sin(heading_angle),   #East
                              np.sin(pitch_angle)])                          #Up
-        self.range = float(range) 
         bearing = np.arctan2(relative_data[1], relative_data[0]) #Absolute bearing: from north 
         boresight_az = (bearing - me['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
-        self.boresight = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
+        boresight = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
         relative_alt = relative_data[2]
         agent_vel = me.vel()
         closure = -np.dot(foe_vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
-        self.closure = float(closure)
-        self.boresight_az = float(boresight_az) #for eval logging
 
         #LOS roration rate - lead pursuit logging
         phi = me['attitude/phi-rad']
@@ -263,20 +266,18 @@ class F16Env(gym.Env):
         omega_scale = np.radians(30.0)
         omega_yaw = float(np.dot(omega, body_up)) / omega_scale
         omega_pitch = float(np.dot(omega, body_right)) / omega_scale
-        self.omega_yaw = omega_yaw
-        self.omega_pitch = omega_pitch
 
         #boresight error rates
-        if self.prev_obs_boresight_az is None:
-            self.prev_obs_boresight_az = boresight_az
-            self.prev_obs_boresight = self.boresight
+        if me.prev_obs_boresight_az is None:
+            me.prev_obs_boresight_az = boresight_az
+            me.prev_obs_boresight = self.boresight
 
         dt_obs = me.get_delta_t() * self.sim_steps_per_action
         rate_scale = dt_obs * np.radians(30.0)
         d_boresight_az = (boresight_az - self.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
 
         boresight_az_rate = d_boresight_az / rate_scale
-        boresight_rate = (self.boresight - self.prev_obs_boresight) / rate_scale
+        boresight_rate = (self.boresight - me.prev_obs_boresight) / rate_scale
 
         me.prev_obs_boresight_az = float(boresight_az)
         me.prev_obs_boresight = float(self.boresight)
