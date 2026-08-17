@@ -19,6 +19,15 @@ class Aircraft():
         self.aile_cmd = 0.0
         self.rudd_cmd = 0.0
         self.thr_cmd = 0.0
+        self.reset_obs_memory()
+
+    def reset_obs_memory(self):
+        self.prev_elev = 0.0
+        self.prev_aile = 0.0
+        self.prev_rudd = 0.0
+        self.prev_throt = 0.0
+        self.prev_obs_boresight_az = None
+        self.prev_obs_boresight = None
 
     def __getitem__(self, k): #self.me for bandit, self.fdm for agent
         return self.fdm[k]

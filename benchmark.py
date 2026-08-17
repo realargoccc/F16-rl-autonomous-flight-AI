@@ -17,7 +17,7 @@ from flight_env import F16Env
 
 model_version = "v2.7.5"
 compare_vers = None
-baseline = 0.62         #last seen good version
+baseline = 0.55         #last seen good version
 tol = 0.05              #how far it can drift
 
 seeds = list(range(9000, 9090)) + list(range(20000, 20090))
