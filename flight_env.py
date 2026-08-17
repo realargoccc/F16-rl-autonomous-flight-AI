@@ -39,6 +39,7 @@ class Aircraft():
         self.fdm.run_ic()
         self.elev_cmd = self.aile_cmd = self.rudd_cmd = 0.0
         self.thr_cmd = 0.5
+        self.reset_obs_memory()
 
     def get_delta_t(self): 
         return self.fdm.get_delta_t()
@@ -231,7 +232,9 @@ class F16Env(gym.Env):
         info = {}
         return obs, info
         
-    def _get_obs(self, me, foe_pos, foe_vel, foe_hp):
+    def _get_obs(self, me, foe, own_hp, foe_hp):
+        foe_pos = foe.pos()
+        foe_vel = foe.vel()
         relative_data = foe_pos - me.pos()
         range = np.linalg.norm(relative_data)
         los_hat = relative_data / (range + 1e-9) #normalize range, leaving the pure direction 
@@ -247,9 +250,7 @@ class F16Env(gym.Env):
         boresight_az = (bearing - me['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi     #Relative bearing: from agent's nose
         self.boresight = float(np.arccos(np.clip(np.dot(nose_vec, los_hat), -1.0, 1.0)))
         relative_alt = relative_data[2]
-        agent_vel = np.array([me['velocities/v-north-fps'] * 0.3048,
-                              me['velocities/v-east-fps'] * 0.3048,
-                              -me['velocities/v-down-fps'] * 0.3048])
+        agent_vel = me.vel()
         closure = -np.dot(foe_vel - agent_vel, relative_data/(range+1e-9)) #gap shrinking / expanding rate
         self.closure = float(closure)
         self.boresight_az = float(boresight_az) #for eval logging
