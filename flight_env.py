@@ -284,8 +284,8 @@ class F16Env(gym.Env):
         boresight_az_rate = d_boresight_az / rate_scale
         boresight_rate = (self.boresight - self.prev_obs_boresight) / rate_scale
 
-        self.prev_obs_boresight_az = float(boresight_az)
-        self.prev_obs_boresight = float(self.boresight)
+        me.prev_obs_boresight_az = float(boresight_az)
+        me.prev_obs_boresight = float(self.boresight)
 
         foe_speed = float(np.linalg.norm(foe_vel)) + 1e-9
         aspect_ang = float(np.arccos(np.clip(np.dot(foe_vel / foe_speed, -relative_data / (range + 1e-9)), -1.0, 1.0)))
@@ -308,11 +308,11 @@ class F16Env(gym.Env):
             me['velocities/mach'],                #corner speed monitor
             me['velocities/r-rad_sec'],           #yaw rate
             me['aero/beta-deg'],                  #sideslip (yaw angle)
-            self.prev_elev,
-            self.prev_aile,
-            self.prev_rudder,
-            self.prev_throttle,
-            self.agent_hp,    
+            me.prev_elev,
+            me.prev_aile,
+            me.prev_rudder,
+            me.prev_throttle,
+            own_hp,
             ], dtype = np.float32
         )
         obs = np.concatenate([agent_state, bandit_state])
