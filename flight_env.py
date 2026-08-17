@@ -154,6 +154,21 @@ class F16Env(gym.Env):
         self.climb_deg = 15.0
         self.dive_deg = 8.0
 
+        @property
+        def range(self):        return self.me_state.range
+        @property
+        def boresight(self):    return self.me_state.boresight
+        @property
+        def boresight_az(self): return self.me_state.boresight_az
+        @property
+        def closure(self):      return self.me_state.closure
+        @property
+        def omega_yaw(self):    return self.me_state.omega_yaw
+        @property
+        def omega_pitch(self):  return self.me_state.omega_pitch
+        @property
+        def aspect_angle(self): return self.me_state.aspect_angle
+        
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
         #agent data
