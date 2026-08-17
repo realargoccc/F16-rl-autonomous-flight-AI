@@ -5,6 +5,7 @@ import jsbsim
 import os
 import random
 import math
+from collections import namedtuple
 
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
@@ -124,10 +125,8 @@ class Aircraft():
 
         return np.array([throttle, elev, aile, 0.0], dtype=np.float32)
 
-class ObsState():
-    #what get obs used to write onto the env, now one instance per observer
-    __slots__ = ("range", "boresight", "boresight_az", "closure", "omega_yaw", "omega_pitch", "aspect_angle")
-
+ObsState = namedtuple("ObsState", ["range", "boresight", "boresight_az", "closure",
+                                   "omega_yaw", "omega_pitch", "aspect_angle"])
 
 
 class F16Env(gym.Env):
@@ -284,10 +283,9 @@ class F16Env(gym.Env):
 
         foe_speed = float(np.linalg.norm(foe_vel)) + 1e-9
         aspect_ang = float(np.arccos(np.clip(np.dot(foe_vel / foe_speed, -relative_data / (range + 1e-9)), -1.0, 1.0)))
-        self.aspect_angle = aspect_ang
         aspecta_norm = (aspect_ang - np.pi / 2) / (np.pi / 2)
 
-        bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, self.boresight, boresight_az_rate, boresight_rate,
+        bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, boresight, boresight_az_rate, boresight_rate,
                                  omega_yaw, omega_pitch, aspecta_norm], dtype=np.float32)
         agent_state = np.array(
             [me['position/h-sl-meters'],          #altitude
@@ -313,7 +311,10 @@ class F16Env(gym.Env):
         obs = np.concatenate([agent_state, bandit_state])
         if self.mirror:
             obs[self.mirror_obs] *= -1.0
-        return obs
+
+        state = ObsState(float(range), boresight, float(boresight_az), float(closure), omega_yaw,
+                         omega_pitch, aspect_ang)
+        return obs, state
 
     def step(self, action):
         action = np.asarray(action, dtype=np.float32).copy()
