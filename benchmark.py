@@ -15,8 +15,8 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 from flight_env import F16Env 
 
-model_version = "v2.7.5"
-compare_vers = None
+model_version = "v2.7.6"
+compare_vers = "v2.7.5"
 baseline = 0.55         #last seen good version
 tol = 0.05              #how far it can drift
 
