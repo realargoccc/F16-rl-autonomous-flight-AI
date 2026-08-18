@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         model.policy.log_std.clamp_(max=-0.5) # hard set the explore of each axis to 0.5 (avoiding bang bang)
-    model.learn(total_timesteps= 3_000_000,reset_num_timesteps=False, tb_log_name="v2.7.6") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
+    model.learn(total_timesteps= 2_000_000,reset_num_timesteps=False, tb_log_name="v2.7.6") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
     model.save(model_path)
     env.save(vecnorm_path)
 
