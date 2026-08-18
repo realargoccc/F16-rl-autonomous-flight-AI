@@ -154,20 +154,20 @@ class F16Env(gym.Env):
         self.climb_deg = 15.0
         self.dive_deg = 8.0
 
-        @property
-        def range(self):        return self.me_state.range
-        @property
-        def boresight(self):    return self.me_state.boresight
-        @property
-        def boresight_az(self): return self.me_state.boresight_az
-        @property
-        def closure(self):      return self.me_state.closure
-        @property
-        def omega_yaw(self):    return self.me_state.omega_yaw
-        @property
-        def omega_pitch(self):  return self.me_state.omega_pitch
-        @property
-        def aspect_angle(self): return self.me_state.aspect_angle
+    @property
+    def range(self):        return self.me_state.range
+    @property
+    def boresight(self):    return self.me_state.boresight
+    @property
+    def boresight_az(self): return self.me_state.boresight_az
+    @property
+    def closure(self):      return self.me_state.closure
+    @property
+    def omega_yaw(self):    return self.me_state.omega_yaw
+    @property
+    def omega_pitch(self):  return self.me_state.omega_pitch
+    @property
+    def aspect_angle(self): return self.me_state.aspect_angle
         
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
@@ -239,7 +239,8 @@ class F16Env(gym.Env):
 
         self.foe_hp = 1.0
         self.agent_hp = 1.0
-        obs = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)  #contains the 8 observation data from def _get_obs
+        obs, self.me_state = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)  #contains the 8 observation data from def _get_obs
+        self.foe_obs, self.foe_state = self._get_obs(self.foe, self.me, self.foe_hp, self.agent_hp)
         #delete this self.prev_range_err = self.range_err()
         self.prev_boresight = self.boresight
         self.prev_gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
@@ -284,17 +285,17 @@ class F16Env(gym.Env):
         #boresight error rates
         if me.prev_obs_boresight_az is None:
             me.prev_obs_boresight_az = boresight_az
-            me.prev_obs_boresight = self.boresight
+            me.prev_obs_boresight = boresight
 
         dt_obs = me.get_delta_t() * self.sim_steps_per_action
         rate_scale = dt_obs * np.radians(30.0)
-        d_boresight_az = (boresight_az - self.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
+        d_boresight_az = (boresight_az - me.prev_obs_boresight_az + np.pi) % (2*np.pi) - np.pi
 
         boresight_az_rate = d_boresight_az / rate_scale
-        boresight_rate = (self.boresight - me.prev_obs_boresight) / rate_scale
+        boresight_rate = (boresight - me.prev_obs_boresight) / rate_scale
 
         me.prev_obs_boresight_az = float(boresight_az)
-        me.prev_obs_boresight = float(self.boresight)
+        me.prev_obs_boresight = float(boresight)
 
         foe_speed = float(np.linalg.norm(foe_vel)) + 1e-9
         aspect_ang = float(np.arccos(np.clip(np.dot(foe_vel / foe_speed, -relative_data / (range + 1e-9)), -1.0, 1.0)))
@@ -347,7 +348,8 @@ class F16Env(gym.Env):
         self.foe.run(self.sim_steps_per_action)
         dt = self.me.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
         
-        obs = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)
+        obs, self.me_state = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)
+        self.foe_obs, self.foe_state = self._get_obs(self.foe, self.me, self.foe_hp, self.agent_hp)
 
         self.curr_step += 1
         alt_agl_m = self.me['position/h-agl-ft'] * 0.3048
