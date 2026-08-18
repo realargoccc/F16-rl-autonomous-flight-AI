@@ -200,7 +200,6 @@ class F16Env(gym.Env):
         #counter reset
         #self.me['simulation/do_simple_trim'] = 1  #one time solution before agent take over
         #bandit data
-       
 
         self.curr_step = 0
         self.prev_action = np.zeros(4, dtype=np.float32) #currently 4 actions in action space
@@ -351,6 +350,10 @@ class F16Env(gym.Env):
         return obs, state
 
     def step(self, action):
+        action = np.asarray(action, dtype=np.float32).copy()
+        if self.mirror:
+            action[2] *= -1.0
+            action[3] *= -1.0
         if self.foe_policy is None:
             los = self.me.pos() - self.foe.pos()
             exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
@@ -359,6 +362,8 @@ class F16Env(gym.Env):
             model, rms, clip, eps = self.foe_policy #rms = runningmeanstd
             nobs = np.clip((self.foe_obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
             foe_action, _ = model.predict(nobs.astype(np.float32), deterministic=True)
+        self.foe.ctrl_input(foe_action)
+        self.me.ctrl_input(action)
 
         #run 
         self.me.run(self.sim_steps_per_action)
@@ -445,7 +450,7 @@ class F16Env(gym.Env):
         self.prev_action = np.array(action, dtype=np.float32)
 
 
-        info = {}
+        info = {"crashed": crashed, "foe_crashed": foe_crashed, "win":win}
         return obs, float(reward), terminated, truncated, info    
         
 if __name__ == "__main__":
