@@ -1,11 +1,13 @@
 import gymnasium as gym
-from gymnasium.spaces import Box
+import pickle
 import numpy as np
 import jsbsim
 import os
 import random
 import math
 from collections import namedtuple
+from gymnasium.spaces import Box
+from stable_baselines3 import PPO
 
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
@@ -172,7 +174,15 @@ class F16Env(gym.Env):
     def omega_pitch(self):  return self.me_state.omega_pitch
     @property
     def aspect_angle(self): return self.me_state.aspect_angle
-        
+
+    def load_foe(self, tag):
+        model = PPO.load("ppo_f16_eleva_" + tag + ".zip", device = "cpu")
+        with open("vecnorm_eleva_" + tag + ".pkl", "rb") as fh:
+            vn = pickle.load(fh)
+        self.foe_pool.append((model, vn.obs_rms, float(vn.clip_obs), float(vn.epsilon)))
+        return len(self.foe_pool)
+
+
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
         #agent data
@@ -341,17 +351,16 @@ class F16Env(gym.Env):
         return obs, state
 
     def step(self, action):
-        action = np.asarray(action, dtype=np.float32).copy()
-        if self.mirror:
-            action[2] *= -1.0
-            action[3] *= -1.0
-        los = self.me.pos() - self.foe.pos()
-        exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
-        foe_action = self.foe.maneuver(exp_heading, self.pitch_target, self.nominal_speed)
-        self.foe.ctrl_input(foe_action)
-        self.me.ctrl_input(action)
+        if self.foe_policy is None:
+            los = self.me.pos() - self.foe.pos()
+            exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
+            foe_action = self.foe.maneuver(exp_heading, self.pitch_target, self.nominal_speed)
+        else:
+            model, rms, clip, eps = self.foe_policy #rms = runningmeanstd
+            nobs = np.clip((self.foe_obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
+            foe_action, _ = model.predict(nobs.astype(np.float32), deterministic=True)
+
         #run 
-        
         self.me.run(self.sim_steps_per_action)
         self.foe.run(self.sim_steps_per_action)
         dt = self.me.get_delta_t() * self.sim_steps_per_action #sync the bandit with agent, 0.1s per update
