@@ -417,12 +417,15 @@ class F16Env(gym.Env):
         if lose: reward -= 100.0
         terminated = crashed or lose or win
 
-        # bookkeeping — feeds the observation
+        # foe and agent bookkeeping — feeds the observation
         self.me.prev_elev, self.me.prev_aile = self.me.elev_cmd, self.me.aile_cmd
         self.me.prev_rudder, self.me.prev_throttle = self.me.rudd_cmd, action[0]
+        self.foe.prev_elev, self.foe.prev_aile = self.foe.elev_cmd, self.foe.aile_cmd
+        self.foe.prev_rudder, self.foe.prev_throttle = self.foe.rudd_cmd, foe_action[0]
         self.prev_prev_action = self.prev_action.copy()
         self.prev_action = np.array(action, dtype=np.float32)
-        
+
+
         info = {}
         return obs, float(reward), terminated, truncated, info    
         
