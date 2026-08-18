@@ -153,6 +153,10 @@ class F16Env(gym.Env):
         self.aspect_band = (0.0, 80.0)
         self.climb_deg = 15.0
         self.dive_deg = 8.0
+        #opponent pool
+        self.foe_pool = []
+        self.foe_pool_prob = 0.5
+        self.foe_policy = None
 
     @property
     def range(self):        return self.me_state.range
@@ -221,6 +225,10 @@ class F16Env(gym.Env):
         foe_heading = self.spawn_aspect % 360.0
         foe_east = 0.0
         self.nominal_speed = 300.0
+        if len(self.foe_pool) > 0 and self.np_random.random() < self.foe_pool_prob:
+            self.foe_policy = self.foe_pool[(self.np_random.integers(len(self.foe_pool)))]
+        else:
+            self.foe_policy = None
 
         #Foe spawn configs
         foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)])
@@ -358,6 +366,8 @@ class F16Env(gym.Env):
         curr_throttle = self.me['fcs/throttle-cmd-norm']
         #Turning Policy Units
         curr_heading = self.me['attitude/psi-rad'] 
+        foe_alt_agl_m = self.foe['position/h-agl-ft'] * 0.3048
+        foe_crashed = bool(foe_alt_agl_m < 30) or abs(self.foe['accelerations/Nz']) > 13.0
         curr_bank = self.me['attitude/phi-deg'] 
         curr_g = self.me['accelerations/Nz']
         aim_cone = np.radians(25.0)
@@ -415,7 +425,7 @@ class F16Env(gym.Env):
         if crashed: reward -= 100
         if win: reward += 100.0
         if lose: reward -= 100.0
-        terminated = crashed or lose or win
+        terminated = crashed or lose or win or foe_crashed
 
         # foe and agent bookkeeping — feeds the observation
         self.me.prev_elev, self.me.prev_aile = self.me.elev_cmd, self.me.aile_cmd
