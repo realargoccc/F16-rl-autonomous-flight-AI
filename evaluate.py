@@ -28,6 +28,8 @@ vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
 model = PPO.load("ppo_f16_eleva_v2.7.5.zip")
 raw = F16Env()
+raw.load_foe("v2.7.5")
+raw.foe_pool_prob = 1.0
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
