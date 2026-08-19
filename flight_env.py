@@ -260,7 +260,7 @@ class F16Env(gym.Env):
         self.foe_obs, self.foe_state = self._get_obs(self.foe, self.me, self.foe_hp, self.agent_hp)
         #delete this self.prev_range_err = self.range_err()
         self.prev_boresight = self.boresight
-        self.prev_gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
+        self.prev_gap = min(max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range), 2000.0)
         info = {}
         return obs, info
         
@@ -427,6 +427,7 @@ class F16Env(gym.Env):
 
         #closing gap policy 
         gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
+        gap = min(gap, 2000.0)      #bound the come back 
         reward += 0.2 * (self.prev_gap - gap)
         self.prev_gap = gap
 
