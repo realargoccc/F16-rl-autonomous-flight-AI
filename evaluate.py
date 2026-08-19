@@ -21,13 +21,14 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v2.7.7.pkl"
+vecnorm_path = "vecnorm_eleva_v2.7.6.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v2.7.7.zip")
+model = PPO.load("ppo_f16_eleva_v2.7.6.zip")
 raw = F16Env()
+raw.aspect_band = (0.0, 80.0)
 raw.load_foe("v2.7.5")
 raw.foe_pool_prob = 1.0
 
@@ -106,13 +107,16 @@ def get_episode(model, vecnorm, raw, seed=None):
             "throttle": raw.me['fcs/throttle-cmd-norm'],
             "elevator": raw.me['fcs/elevator-cmd-norm'],
             "aileron": raw.me['fcs/aileron-cmd-norm'],
-            "rudder" : raw.me['fcs/rudder-cmd-norm']
+            "rudder" : raw.me['fcs/rudder-cmd-norm'],
             }
         )
         step += 1
     completed = bool(abs(raw.turned) >= 2 * np.pi)  #turned 360 degrees are consider completed
     win = bool(raw.foe_hp <= 0.0)
     lose = bool(raw.agent_hp <= 0.0)
+    alt_lost = float(rows[0]["alt_msl_m"] - min(r["alt_msl_m"] for r in rows)) 
+    wez_bs = [abs(r["boresight_az_deg"]) for r in rows if r["in_wez"]]
+    mean_abs_bs = float(np.mean(wez_bs)) if wez_bs else 999.0
     summary = {
         "length": step,
         "total_reward": total_reward,
@@ -125,14 +129,17 @@ def get_episode(model, vecnorm, raw, seed=None):
         "turn_offset": turn_offset,
         "pitch_target": pitch_target,
         "setup": setup,
+        "alt_lost": alt_lost,
+        "mean_abs_bs": mean_abs_bs,
     }
     return summary
 
 def episode_key(epi):
     #priority rank: reached wez, closest distance to wez, nose point direction, reward
     return (int(epi["win"]),
-            epi["agent_hp"] - epi["foe_hp"],
-            epi["total_reward"])
+            epi["length"],
+            epi["alt_lost"],
+            epi["mean_abs_bs"])
 
 def seed_sweep(model, vecnorm, raw, num_episodes=50):
     wins = 0        #total kills

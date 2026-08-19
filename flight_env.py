@@ -402,6 +402,11 @@ class F16Env(gym.Env):
         elif curr_g < -1.0:
             reward -= 0.5 * (-1.0 - curr_g)**2
 
+        #below deck punishment
+        alt_agl_kft = alt_agl_m / 304.8
+        if alt_agl_kft < 3.0:
+            reward -= 0.5 * (3.0 - alt_agl_kft) ** 2
+
         #punish huge oscillation 
         a_t = np.asarray(action[0:4], dtype = np.float32)
         a_t1 = self.prev_action[0:4]

@@ -8,15 +8,16 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
 model_load = "ppo_f16_eleva_v2.7.6.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v2.7.8.zip" 
+model_path = "ppo_f16_eleva_v2.7.9.zip" 
 vecnorm_load = "vecnorm_eleva_v2.7.6.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v2.7.8.pkl"
+vecnorm_path = "vecnorm_eleva_v2.7.9.pkl"
 
 def make_env():
     env = F16Env()
     env.aspect_band = (170.0, 180.0)
-    env.load_foe("v2.7.5")
-    env.load_foe("v2.7.6")
+    foe_pool = ["v2.7.5", "v2.7.6"]
+    for vers in foe_pool:
+        env.load_foe(vers)
     env.foe_pool_prob = 0.5
     return Monitor(env, info_keywords=("crashed", "foe_crashed", "win"))
 
