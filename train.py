@@ -7,14 +7,16 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, SubprocV
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
-model_load = "ppo_f16_eleva_v2.7.5.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v2.7.6.zip" 
-vecnorm_load = "vecnorm_eleva_v2.7.5.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v2.7.6.pkl"
+model_load = "ppo_f16_eleva_v2.7.6.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+model_path = "ppo_f16_eleva_v2.7.7.zip" 
+vecnorm_load = "vecnorm_eleva_v2.7.6.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+vecnorm_path = "vecnorm_eleva_v2.7.7.pkl"
 
 def make_env():
     env = F16Env()
+    env.aspect_band = (170.0, 180.0)
     env.load_foe("v2.7.5")
+    env.load_foe("v2.7.6")
     env.foe_pool_prob = 0.5
     return Monitor(env, info_keywords=("crashed", "foe_crashed", "win"))
 

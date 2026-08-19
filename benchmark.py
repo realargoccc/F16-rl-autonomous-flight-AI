@@ -15,14 +15,14 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 from flight_env import F16Env 
 
-model_version = "v2.7.6"
-compare_vers = "v2.7.5"
-baseline = 0.55         #last seen good version
+model_version = "v2.7.7"
+compare_vers = "v2.7.6"
+baseline = 0.66         #last seen good version
 tol = 0.05              #how far it can drift
 
 seeds = list(range(9000, 9090)) + list(range(20000, 20090))
-aspect_edges = [172.5, 175.0, 177.5, 180.0]
-aspect_names = ["170-173", "173-175", "175-178", "178-180"]
+aspect_edges = [20.0, 40.0, 60.0, 80.0]
+aspect_names = ["0-20", "20-40", "40-60", "60-80"]
 tactics = ["flee", "beam+", "beam-"]
 pitches = ["climb", "level", "dive"]
 

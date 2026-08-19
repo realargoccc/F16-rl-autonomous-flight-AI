@@ -152,7 +152,7 @@ class F16Env(gym.Env):
         self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
         self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
         self.range_band = (700.0, 1200.0)
-        self.aspect_band = (170.0, 180.0)
+        self.aspect_band = (0.0, 80.0)
         self.climb_deg = 15.0
         self.dive_deg = 8.0
         #opponent pool
