@@ -437,15 +437,17 @@ class F16Env(gym.Env):
         reward += 0.2 * (self.prev_gap - gap)
         self.prev_gap = gap
 
-        #closing cone 
-        reward += 3.0 * (self.prev_boresight - self.boresight)
-        self.prev_boresight = self.boresight
-
+        #symmetric pair
+        aim = math.exp(-(self.boresight / self.aim_width) ** 2)
+        threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
+        reward += 0.5 * aim
+        reward -= 0.5 * threat
+        
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
-        if crashed: reward -= 100
-        if win: reward += 100.0
-        if lose: reward -= 100.0
+        if crashed: reward -= 300
+        if win: reward += 400.0
+        if lose: reward -= 400.0
         terminated = crashed or lose or win or foe_crashed
 
         # foe and agent bookkeeping — feeds the observation
