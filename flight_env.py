@@ -260,8 +260,6 @@ class F16Env(gym.Env):
         obs, self.me_state = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)  #contains the 8 observation data from def _get_obs
         self.foe_obs, self.foe_state = self._get_obs(self.foe, self.me, self.foe_hp, self.agent_hp)
         #delete this self.prev_range_err = self.range_err()
-        self.prev_boresight = self.boresight
-        self.prev_gap = min(max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range), 2000.0)
         info = {}
         return obs, info
         
@@ -413,9 +411,7 @@ class F16Env(gym.Env):
         a_t1 = self.prev_action[0:4]
         a_t2 = self.prev_prev_action[0:4]
 
-        reward -= 0.02 * float(np.sum((a_t - a_t1) ** 2))   #rate punishement (一阶差)
-        reward -= 0.15 * float(np.sum((a_t - 2.0 * a_t1 + a_t2) ** 2))  #curvature punishment (二阶差)
-        reward -= 0.01 * float(np.sum(a_t ** 2))                       #magnitude 
+        reward -= 0.02 * float(np.sum((a_t - 2.0 * a_t1 + a_t2) ** 2))  #curvature punishment (二阶差)
 
         #wez agent's configs
         in_wez = (self.gun_rmin <= self.range <= self.gun_rmax)
@@ -431,18 +427,16 @@ class F16Env(gym.Env):
             self.agent_hp -= damage
             reward -= self.k_damage * damage
 
-        #closing gap policy 
-        gap = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
-        gap = min(gap, 2000.0)      #bound the come back 
-        reward += 0.2 * (self.prev_gap - gap)
-        self.prev_gap = gap
+        #distance away
+        dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
+        reward -= 0.3 * min(dis / 5000.0, 1.0)
 
         #symmetric pair
         aim = math.exp(-(self.boresight / self.aim_width) ** 2)
         threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
         reward += 0.5 * aim
         reward -= 0.5 * threat
-        
+
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
         if crashed: reward -= 300
