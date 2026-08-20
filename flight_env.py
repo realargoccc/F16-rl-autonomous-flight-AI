@@ -244,12 +244,12 @@ class F16Env(gym.Env):
 
         #Foe spawn configs
         foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)])
+        foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
         #shuffle defense and offense spawn
         side = -1.0 if self.np_random.random() < self.defensive_p else 1.0
         self.setup = "defensive" if side < 0 else "offensive" 
-        
-        foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
-        self.foe['ic/lat-gc-deg'] = lat0 + foe_range / 111320.0
+    
+        self.foe['ic/lat-gc-deg'] = lat0 + side * foe_range / 111320.0
         self.foe['ic/long-gc-deg'] = lon0 + foe_east / (111320.0 * np.cos(np.radians(lat0)))
         self.foe['ic/h-sl-ft'] = (self.me['position/h-sl-meters'] + foe_rel_alt) / 0.3048 #agent's perspective 
         self.foe['ic/vc-kts'] = 450.0
