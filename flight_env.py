@@ -136,7 +136,7 @@ class F16Env(gym.Env):
         self.me = Aircraft()
         self.foe = Aircraft()
         super().__init__()
-        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(29,), dtype = np.float32)    #set throttle and elevator lower and upper bound
+        self.observation_space = Box(low=-np.inf, high = np.inf, shape=(30,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
         self.max_episodes_steps = 600
@@ -230,6 +230,7 @@ class F16Env(gym.Env):
         self.setup = "offensive"
         foe_range = float(self.np_random.uniform(*self.range_band))
         aspect_sign = float(self.np_random.choice([-1.0, 1.0]))
+
         self.spawn_aspect = aspect_sign * float(self.np_random.uniform(*self.aspect_band))
         foe_heading = self.spawn_aspect % 360.0
         foe_east = 0.0
@@ -317,9 +318,9 @@ class F16Env(gym.Env):
         foe_speed = float(np.linalg.norm(foe_vel)) + 1e-9
         aspect_ang = float(np.arccos(np.clip(np.dot(foe_vel / foe_speed, -relative_data / (range + 1e-9)), -1.0, 1.0)))
         aspecta_norm = (aspect_ang - np.pi / 2) / (np.pi / 2)
-
+        foe_bs = foe.boresight_to(me.pos())
         bandit_state = np.array([range, boresight_az, relative_alt, closure, foe_hp, boresight, boresight_az_rate, boresight_rate,
-                                 omega_yaw, omega_pitch, aspecta_norm], dtype=np.float32)
+                                 omega_yaw, omega_pitch, aspecta_norm, foe_bs], dtype=np.float32)
         agent_state = np.array(
             [me['position/h-sl-meters'],          #altitude
             me['velocities/vc-fps'] * 0.3048,     #IAS
