@@ -149,12 +149,13 @@ class F16Env(gym.Env):
         self.gun_rmin = 450.0
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
-        self.k_damage = 20.0 # 2 reward per 0.1 hp damage dealt
+        self.k_damage = 60.0 # 2 reward per 0.1 hp damage dealt
         self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
         self.range_band = (700.0, 1200.0)
         self.aspect_band = (0.0, 80.0)
         self.climb_deg = 15.0
         self.dive_deg = 8.0
+        self.aim_width = np.radians(20.0)
         #opponent pool
         self.foe_pool = []
         self.foe_pool_prob = 0.5
@@ -429,7 +430,7 @@ class F16Env(gym.Env):
 
         #distance away
         dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
-        reward -= 0.3 * min(dis / 5000.0, 1.0)
+        reward -= 1.0 * min(dis / 1000.0, 1.0)
 
         #symmetric pair
         aim = math.exp(-(self.boresight / self.aim_width) ** 2)
