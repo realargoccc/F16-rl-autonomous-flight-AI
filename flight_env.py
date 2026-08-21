@@ -247,7 +247,7 @@ class F16Env(gym.Env):
         foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
         #shuffle defense and offense spawn
         r = self.np_random.random()
-        side = -1.0 if self.np_random.random() < self.defensive_p else 1.0
+        side = -1.0 if (self.foe_policy is not None and r < self.defensive_p) else 1.0
         self.setup = "defensive" if side < 0 else "offensive" 
     
         self.foe['ic/lat-gc-deg'] = lat0 + side * foe_range / 111320.0
