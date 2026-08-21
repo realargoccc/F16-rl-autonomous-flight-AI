@@ -246,6 +246,7 @@ class F16Env(gym.Env):
         foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)])
         foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
         #shuffle defense and offense spawn
+        r = self.np_random.random()
         side = -1.0 if self.np_random.random() < self.defensive_p else 1.0
         self.setup = "defensive" if side < 0 else "offensive" 
     
@@ -409,8 +410,8 @@ class F16Env(gym.Env):
 
         #below deck punishment
         alt_agl_kft = alt_agl_m / 304.8
-        if alt_agl_kft < 3.0:
-            reward -= 0.5 * (3.0 - alt_agl_kft) ** 2
+        if alt_agl_kft < 6.0:
+            reward -= 0.05 * (6.0 - alt_agl_kft) ** 2
 
         #punish huge oscillation 
         a_t = np.asarray(action[0:4], dtype = np.float32)
