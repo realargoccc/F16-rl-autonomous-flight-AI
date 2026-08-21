@@ -29,7 +29,7 @@ vecnorm.norm_reward = False
 model = PPO.load("ppo_f16_eleva_v2.8.4.zip")
 raw = F16Env()
 raw.aspect_band = (0.0, 80.0)
-raw.load_foe("v2.8.0")
+raw.load_foe("v2.8.3")
 raw.foe_pool_prob = 1.0
 
 def get_episode(model, vecnorm, raw, seed=None):
@@ -137,9 +137,9 @@ def get_episode(model, vecnorm, raw, seed=None):
 def episode_key(epi):
     #priority rank: reached wez, closest distance to wez, nose point direction, reward
     return (int(epi["win"]),
-            epi["length"],
-            epi["alt_lost"],
-            epi["mean_abs_bs"])
+            -epi["length"],
+            -epi["alt_lost"],
+            -epi["mean_abs_bs"])
 
 def seed_sweep(model, vecnorm, raw, num_episodes=50):
     wins = 0        #total kills

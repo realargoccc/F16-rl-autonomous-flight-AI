@@ -440,7 +440,7 @@ class F16Env(gym.Env):
         #symmetric pair
         aim = math.exp(-(self.boresight / self.aim_width) ** 2)
         threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
-        reward += 0.5 * aim
+        reward += 0.5 * aim * (1.0 - threat)
         reward -= 0.5 * threat
 
         win = bool(self.foe_hp <= 0.0)
