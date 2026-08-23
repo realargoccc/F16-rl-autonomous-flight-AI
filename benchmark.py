@@ -15,9 +15,9 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 from flight_env import F16Env 
 
-model_version = "v2.8.6"
-compare_vers = "v2.8.5"
-baseline = 0.61         #last seen good version
+model_version = "v2.8.7"
+compare_vers = "v2.8.6"
+baseline = 0.83         #last seen good version
 tol = 0.05              #how far it can drift
 
 seeds = list(range(9000, 9090)) + list(range(20000, 20090))
