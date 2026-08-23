@@ -434,13 +434,19 @@ class F16Env(gym.Env):
             self.agent_hp -= damage
             reward -= self.k_damage * damage
 
-        #symmetric pair
-        aim = math.exp(-(self.boresight / self.aim_width) ** 2)
-        threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
-        reward += 0.5 * aim * (1.0 - threat)
-        reward -= 0.5 * threat
+        #positional advantage - ATA and AA
+        eta_ata = 1.0 - self.boresight / np.pi     #1.0 = nose on nose
+        eta_aa  = 1.0 - self.aspect_angle / np.pi  #1.0 = nose on tail
+        agent_adv = 0.5 * eta_ata + 0.5 * eta_aa
+
+        foe_eta_ata = 1.0 - foe_boresight / np.pi #same logic as agent
+        foe_eta_aa  = 1.0 - self.foe_state.aspect_angle / np.pi
+        foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
+
+        reward += 0.5 * (agent_adv - foe_adv)
 
         #distance away
+        threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
         dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
         reward -= 1.0 * min(dis / 1000.0, 1.0) * (1.0 - threat)
 
