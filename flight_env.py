@@ -434,15 +434,15 @@ class F16Env(gym.Env):
             self.agent_hp -= damage
             reward -= self.k_damage * damage
 
-        #distance away
-        dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
-        reward -= 1.0 * min(dis / 1000.0, 1.0)
-
         #symmetric pair
         aim = math.exp(-(self.boresight / self.aim_width) ** 2)
         threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
         reward += 0.5 * aim * (1.0 - threat)
         reward -= 0.5 * threat
+
+        #distance away
+        dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
+        reward -= 1.0 * min(dis / 1000.0, 1.0) * (1.0 - threat)
 
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over

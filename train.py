@@ -7,16 +7,16 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, SubprocV
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
-model_load = "ppo_f16_eleva_v2.8.4.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v2.8.5.zip" 
-vecnorm_load = "vecnorm_eleva_v2.8.4.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v2.8.5.pkl"
+model_load = "ppo_f16_eleva_v2.8.5.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+model_path = "ppo_f16_eleva_v2.8.6.zip" 
+vecnorm_load = "vecnorm_eleva_v2.8.5.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+vecnorm_path = "vecnorm_eleva_v2.8.6.pkl"
 
 def make_env():
     env = F16Env()
     env.aspect_band = (0.0, 80.0)
     env.defensive_p = 0.5
-    foe_pool = ["v2.8.0", "v2.8.1", "v2.8.2", "v2.8.3", "v2.8.4"]
+    foe_pool = ["v2.8.0", "v2.8.1", "v2.8.2", "v2.8.3", "v2.8.4", "v2.8.5"]
     for vers in foe_pool:
         env.load_foe(vers)
     env.foe_pool_prob = 0.5
