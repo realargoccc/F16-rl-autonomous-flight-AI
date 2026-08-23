@@ -436,11 +436,11 @@ class F16Env(gym.Env):
 
         #positional advantage - ATA and AA
         eta_ata = 1.0 - self.boresight / np.pi     #1.0 = nose on nose
-        eta_aa  = 1.0 - self.aspect_angle / np.pi  #1.0 = nose on tail
+        eta_aa  = self.aspect_angle / np.pi  #1.0 = nose on tail
         agent_adv = 0.5 * eta_ata + 0.5 * eta_aa
 
         foe_eta_ata = 1.0 - foe_boresight / np.pi #same logic as agent
-        foe_eta_aa  = 1.0 - self.foe_state.aspect_angle / np.pi
+        foe_eta_aa  = self.foe_state.aspect_angle / np.pi
         foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
 
         reward += 0.5 * (agent_adv - foe_adv)
