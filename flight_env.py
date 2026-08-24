@@ -399,8 +399,8 @@ class F16Env(gym.Env):
 
         reward = 0.0
         # constraint rails — flat interior, wall at the edge
-        if speed_knots < 350:
-            reward -= 0.01 * (350 - speed_knots)
+        if speed_knots < 200:
+            reward -= 0.01 * (200 - speed_knots)
         elif speed_knots > 800:
             reward -= 0.01 * (speed_knots - 800)
         if curr_g > 8.5:

@@ -65,7 +65,7 @@ def main():
 
         if i == 0:
             output.append(f"{foe_ID},T={T_foe}, Name=F-16C, "
-                          f"Color=red,Callsign=Ghost")
+                          f"Color=Red,Callsign=Ghost")
         else:
             output.append(f"{foe_ID},T={T_foe}")
 
