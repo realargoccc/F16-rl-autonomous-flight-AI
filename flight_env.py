@@ -157,6 +157,7 @@ class F16Env(gym.Env):
         self.dive_deg = 8.0
         self.aim_width = np.radians(20.0)
         self.hard_deck = 1524.0 #meters
+        self.k_bridge = 300.0
         self.defensive_p = 0.0
         #opponent pool
         self.foe_pool = []
@@ -264,6 +265,7 @@ class F16Env(gym.Env):
 
         self.foe_hp = 1.0
         self.agent_hp = 1.0
+        self.prev_bridge = None
         obs, self.me_state = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)  #contains the 8 observation data from def _get_obs
         self.foe_obs, self.foe_state = self._get_obs(self.foe, self.me, self.foe_hp, self.agent_hp)
         #delete this self.prev_range_err = self.range_err()
@@ -445,6 +447,11 @@ class F16Env(gym.Env):
         foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
 
         reward += 0.5 * (agent_adv - foe_adv)
+        pot = self.k_bridge * min(agent_adv - foe_adv, 0.0)
+        if self.prev_bridge is None:
+            self.prev_bridge = pot
+        reward += pot - self.prev_bridge
+        self.prev_bridge = pot
 
         #distance away
         threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
@@ -469,7 +476,6 @@ class F16Env(gym.Env):
         self.foe.prev_rudder, self.foe.prev_throttle = self.foe.rudd_cmd, foe_action[0]
         self.prev_prev_action = self.prev_action.copy()
         self.prev_action = np.array(action, dtype=np.float32)
-
 
         info = {"crashed": crashed, "foe_crashed": foe_crashed, "win":win, "deck_hit": deck_hit}
         return obs, float(reward), terminated, truncated, info    
