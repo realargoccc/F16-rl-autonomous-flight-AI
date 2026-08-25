@@ -164,7 +164,7 @@ def seed_sweep(model, vecnorm, raw, num_episodes=50):
 
     buckets = {"flee":[0,0], "beam +": [0,0], "beam -": [0,0]}
     pitches = {"climb": [0, 0], "level": [0, 0], "dive": [0, 0]}
-    setups = {"offensive": [0, 0], "head_on": [0, 0]}
+    setups = {"offensive": [0, 0], "defensive": [0, 0]}
     for e in episodes:
         pt = e["pitch_target"]
         k = "climb" if pt > 0.01 else ("dive" if pt < -0.01 else "level")

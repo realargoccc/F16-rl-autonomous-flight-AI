@@ -215,7 +215,6 @@ class F16Env(gym.Env):
 
         self.prev_heading = self.me['attitude/psi-rad']
         self.turned = 0.0   #accumulator
-        self.prev_pitch_rate = 0.0
         #bool(self.np_random.random() < 0.5)
         self.mirror = False  
         #foe's tactic:
@@ -383,15 +382,15 @@ class F16Env(gym.Env):
         alt_agl_m = self.me['position/h-agl-ft'] * 0.3048
         truncated = bool(self.curr_step >= self.max_episodes_steps)
         speed_knots = self.me['velocities/vc-fps'] * 0.592484    #speed in knots
-        curr_throttle = self.me['fcs/throttle-cmd-norm']
+        #curr_throttle = self.me['fcs/throttle-cmd-norm']
         #Turning Policy Units
         curr_heading = self.me['attitude/psi-rad'] 
         foe_alt_agl_m = self.foe['position/h-agl-ft'] * 0.3048
         foe_crashed = bool(foe_alt_agl_m < 30) or abs(self.foe['accelerations/Nz']) > 13.0
-        curr_bank = self.me['attitude/phi-deg'] 
+        #curr_bank = self.me['attitude/phi-deg'] 
         curr_g = self.me['accelerations/Nz']
-        aim_cone = np.radians(25.0)
-        crashed = bool(alt_agl_m < 30) or abs(self.me['accelerations/Nz']) > 13.0 or abs(curr_g) > 13.0
+        #aim_cone = np.radians(25.0)
+        crashed = bool(alt_agl_m < 30) or abs(self.me['accelerations/Nz']) > 13.0 
 
         delta_turn = (curr_heading - self.prev_heading + np.pi) % (2*np.pi) - np.pi
         self.turned += delta_turn
@@ -450,12 +449,16 @@ class F16Env(gym.Env):
         dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
         reward -= 1.0 * min(dis / 1000.0, 1.0) * (1.0 - threat)
 
+        #hard deck ACM
+        deck_hit = bool(alt_agl_m < self.hard_deck_m)
+        if deck_hit: reward -= 300.0
+
         win = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0) #knock it off - fights over
         if crashed: reward -= 300
         if win: reward += 400.0
         if lose: reward -= 400.0
-        terminated = crashed or lose or win or foe_crashed
+        terminated = crashed or lose or win or foe_crashed or deck_hit
 
         # foe and agent bookkeeping — feeds the observation
         self.me.prev_elev, self.me.prev_aile = self.me.elev_cmd, self.me.aile_cmd
