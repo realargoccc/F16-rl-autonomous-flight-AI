@@ -68,7 +68,7 @@ def run_sweep(tag):
             if raw.gun_rmin <= raw.range <= raw.gun_rmax:
                 dwell += 1
                 bs_list.append(np.degrees(raw.boresight))
-            if raw.me['position/h-agl-ft'] * 0.3048 < 30 or abs(raw.me['accelerations/Nz']) > 13.0:
+            if info["crashed"] or info["deck_hit"]:
                 crashed = True
         if len(bs_list) > 0:    #if never enter wez, need a bad run (warning)
             medbs = float(np.median(bs_list))

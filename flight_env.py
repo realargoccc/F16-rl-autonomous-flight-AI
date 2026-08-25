@@ -156,6 +156,7 @@ class F16Env(gym.Env):
         self.climb_deg = 15.0
         self.dive_deg = 8.0
         self.aim_width = np.radians(20.0)
+        self.hard_deck = 1524.0 #meters
         self.defensive_p = 0.0
         #opponent pool
         self.foe_pool = []
@@ -428,8 +429,9 @@ class F16Env(gym.Env):
             reward += self.k_damage * damage
         #wez bandit's configs
         foe_boresight = self.foe.boresight_to(self.me.pos())
-        if (foe_boresight < self.gun_cone) and (self.gun_rmin <= self.range <= self.gun_rmax):
-            damage = dt * (self.gun_rmin / self.range)
+        if self.gun_rmin <= self.range <= self.gun_rmax:
+            foe_pk = math.exp(-(foe_boresight / self.gun_cone) ** 2)
+            damage = dt * (self.gun_rmin / self.range) * foe_pk
             self.agent_hp -= damage
             reward -= self.k_damage * damage
 
@@ -450,7 +452,7 @@ class F16Env(gym.Env):
         reward -= 1.0 * min(dis / 1000.0, 1.0) * (1.0 - threat)
 
         #hard deck ACM
-        deck_hit = bool(alt_agl_m < self.hard_deck_m)
+        deck_hit = bool(alt_agl_m < self.hard_deck)
         if deck_hit: reward -= 300.0
 
         win = bool(self.foe_hp <= 0.0)
@@ -469,7 +471,7 @@ class F16Env(gym.Env):
         self.prev_action = np.array(action, dtype=np.float32)
 
 
-        info = {"crashed": crashed, "foe_crashed": foe_crashed, "win":win}
+        info = {"crashed": crashed, "foe_crashed": foe_crashed, "win":win, "deck_hit": deck_hit}
         return obs, float(reward), terminated, truncated, info    
         
 if __name__ == "__main__":
