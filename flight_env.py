@@ -399,74 +399,31 @@ class F16Env(gym.Env):
         self.turned += delta_turn
         self.prev_heading = curr_heading
 
-        reward = 0.0
-        # constraint rails — flat interior, wall at the edge
-        if speed_knots < 200:
-            reward -= 0.01 * (200 - speed_knots)
-        elif speed_knots > 800:
-            reward -= 0.01 * (speed_knots - 800)
-        if curr_g > 8.5:
-            reward -= 0.5 * (curr_g - 8.5)**2       #g back-off ramp
-        elif curr_g < -1.0:
-            reward -= 0.5 * (-1.0 - curr_g)**2
-
-        #below deck punishment
-        alt_agl_kft = alt_agl_m / 304.8
-        if alt_agl_kft < 6.0:
-            reward -= 0.05 * (6.0 - alt_agl_kft) ** 2
-
-        #punish huge oscillation 
-        a_t = np.asarray(action[0:4], dtype = np.float32)
-        a_t1 = self.prev_action[0:4]
-        a_t2 = self.prev_prev_action[0:4]
-
-        reward -= 0.02 * float(np.sum((a_t - 2.0 * a_t1 + a_t2) ** 2))  #curvature punishment (二阶差)
-
-        #wez agent's configs
-        in_wez = (self.gun_rmin <= self.range <= self.gun_rmax)
-        if in_wez:
-            pk = math.exp(-(self.boresight / self.gun_cone) ** 2)
-            damage = dt * (self.gun_rmin / self.range) * pk
-            self.foe_hp -= damage
-            reward += self.k_damage * damage
-        #wez bandit's configs
-        foe_boresight = self.foe.boresight_to(self.me.pos())
-        if self.gun_rmin <= self.range <= self.gun_rmax:
-            foe_pk = math.exp(-(foe_boresight / self.gun_cone) ** 2)
-            damage = dt * (self.gun_rmin / self.range) * foe_pk
-            self.agent_hp -= damage
-            reward -= self.k_damage * damage
-
-        #positional advantage - ATA and AA
-        eta_ata = 1.0 - self.boresight / np.pi     #1.0 = nose on nose
-        eta_aa  = self.aspect_angle / np.pi  #1.0 = nose on tail
-        agent_adv = 0.5 * eta_ata + 0.5 * eta_aa
-
-        foe_eta_ata = 1.0 - foe_boresight / np.pi #same logic as agent
-        foe_eta_aa  = self.foe_state.aspect_angle / np.pi
-        foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
-
-        reward += 0.5 * (agent_adv - foe_adv)
-        pot = self.k_bridge * min(agent_adv - foe_adv, 0.0)
-        if self.prev_bridge is None:
-            self.prev_bridge = pot
-        reward += pot - self.prev_bridge
-        self.prev_bridge = pot
-
-        #distance away
-        threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
-        dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
-        reward -= 1.0 * min(dis / 1000.0, 1.0) * (1.0 - threat)
-
-        #hard deck ACM
+                #hard deck ACM — 提到 _reward 之前，因为要作为参数传进去
         deck_hit = bool(alt_agl_m < self.hard_deck)
-        if deck_hit: reward -= 300.0
 
-        win = bool(self.foe_hp <= 0.0)
-        lose = bool(self.agent_hp <= 0) #knock it off - fights over
-        if crashed: reward -= 300
-        if win: reward += 400.0
-        if lose: reward -= 400.0
+        #WEZ physics — world state，所有子类必须一致，_reward 只负责定价
+        dmg_foe = dmg_me = 0.0
+        if self.gun_rmin <= self.range <= self.gun_rmax:
+            foe_bs = self.foe.boresight_to(self.me.pos())
+            scale  = dt * (self.gun_rmin / self.range)
+            dmg_foe = scale * math.exp(-(self.boresight / self.gun_cone) ** 2)
+            dmg_me  = scale * math.exp(-(foe_bs / self.gun_cone) ** 2)
+
+        out = self._reward(action, speed_knots, curr_g, alt_agl_m, dt,
+                           crashed, foe_crashed, deck_hit, truncated, dmg_foe, dmg_me)
+
+        self.foe_hp   -= out.dmg_foe
+        self.agent_hp -= out.dmg_me
+
+        #potential 记账留在 step()，两个 env 才会以同样方式 telescope
+        if self.prev_bridge is None:
+            self.prev_bridge = out.pot
+        reward = out.reward + (out.pot - self.prev_bridge)
+        self.prev_bridge = out.pot
+
+        win  = bool(self.foe_hp <= 0.0)
+        lose = bool(self.agent_hp <= 0.0)
         terminated = crashed or lose or win or foe_crashed or deck_hit
 
         # foe and agent bookkeeping — feeds the observation
