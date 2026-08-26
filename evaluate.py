@@ -30,7 +30,7 @@ model = PPO.load("ppo_f16_eleva_v2.8.9.zip")
 raw = F16Env()
 raw.aspect_band = (0.0, 80.0)
 raw.defensive_p = 1.0
-raw.load_foe("v2.8.8")
+raw.load_foe("v2.8.9")
 raw.foe_pool_prob = 1.0
 
 def get_episode(model, vecnorm, raw, seed=None):
