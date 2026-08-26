@@ -179,11 +179,16 @@ class F16Env(gym.Env):
     @property
     def aspect_angle(self): return self.me_state.aspect_angle
 
-    def load_foe(self, tag):
+    @staticmethod
+    def load_policy(self, tag):
         model = PPO.load("ppo_f16_eleva_" + tag + ".zip", device = "cpu")
         with open("vecnorm_eleva_" + tag + ".pkl", "rb") as fh:
             vn = pickle.load(fh)
         self.foe_pool.append((model, vn.obs_rms, float(vn.clip_obs), float(vn.epsilon)))
+        return len(self.foe_pool)
+
+    def load_foe(self, tag):
+        self.foe_pool.append(self.load_policy(tag))
         return len(self.foe_pool)
 
 
@@ -356,6 +361,65 @@ class F16Env(gym.Env):
         state = ObsState(float(range), boresight, float(boresight_az), float(closure), omega_yaw,
                          omega_pitch, aspect_ang)
         return obs, state
+
+    def _reward(self, action, speed_knots, curr_g, alt_agl_m, dt,
+                crashed, foe_crashed, deck_hit, truncated, dmg_foe, dmg_me):
+        #constraint rails — flat interior, wall at the edge
+        r_rails = 0.0
+        if speed_knots < 200:
+            r_rails -= 0.01 * (200 - speed_knots)
+        elif speed_knots > 800:
+            r_rails -= 0.01 * (speed_knots - 800)
+        if curr_g > 8.5:
+            r_rails -= 0.5 * (curr_g - 8.5) ** 2        #g back-off ramp
+        elif curr_g < -1.0:
+            r_rails -= 0.5 * (-1.0 - curr_g) ** 2
+
+        #below deck punishment
+        r_deck = 0.0
+        alt_agl_kft = alt_agl_m / 304.8
+        if alt_agl_kft < 6.0:
+            r_deck -= 0.05 * (6.0 - alt_agl_kft) ** 2
+
+        #punish huge oscillation (二阶差)
+        a_t  = np.asarray(action[0:4], dtype=np.float32)
+        a_t1 = self.prev_action[0:4]
+        a_t2 = self.prev_prev_action[0:4]
+        r_osc = -0.02 * float(np.sum((a_t - 2.0 * a_t1 + a_t2) ** 2))
+
+        #wez pricing — dmg 由 step() 按统一物理算好传进来，不要在这里改它的数值
+        r_wez = self.k_damage * (dmg_foe - dmg_me)
+
+        #positional advantage - ATA and AA
+        foe_boresight = self.foe.boresight_to(self.me.pos())
+        eta_ata = 1.0 - self.boresight / np.pi      #1.0 = nose on nose
+        eta_aa  = self.aspect_angle / np.pi         #1.0 = nose on tail
+        agent_adv = 0.5 * eta_ata + 0.5 * eta_aa
+
+        foe_eta_ata = 1.0 - foe_boresight / np.pi
+        foe_eta_aa  = self.foe_state.aspect_angle / np.pi
+        foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
+
+        r_adv = 0.5 * (agent_adv - foe_adv)
+        pot = self.k_bridge * min(agent_adv - foe_adv, 0.0)   #raw，telescope 交给 step()
+
+        #distance away
+        threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
+        dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
+        r_dis = -1.0 * min(dis / 1000.0, 1.0) * (1.0 - threat)
+
+        #terminals — hp 还没减，win/lose 读减法前的值
+        #foe_crashed 故意不计分：付钱会长出「等对方自己摔」的均衡
+        r_term = 0.0
+        if deck_hit: r_term -= 300.0
+        if crashed:  r_term -= 300.0
+        if self.foe_hp   - dmg_foe <= 0.0: r_term += 400.0
+        if self.agent_hp - dmg_me  <= 0.0: r_term -= 400.0
+
+        self.last_terms = {"rails": r_rails, "deck": r_deck, "osc": r_osc, "wez": r_wez,
+                           "adv": r_adv, "dis": r_dis, "term": r_term, "pot": pot}
+        reward = r_rails + r_deck + r_osc + r_wez + r_adv + r_dis + r_term
+        return RewardOut(reward, dmg_foe, dmg_me, pot)
 
     def step(self, action):
         action = np.asarray(action, dtype=np.float32).copy()
