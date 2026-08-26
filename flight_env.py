@@ -130,6 +130,7 @@ class Aircraft():
 ObsState = namedtuple("ObsState", ["range", "boresight", "boresight_az", "closure",
                                    "omega_yaw", "omega_pitch", "aspect_angle"])
 
+RewardOut = namedtuple("RewardOut", ["reward", "dmg_foe", "dmg_me", "pot"])
 
 class F16Env(gym.Env):
     def __init__(self):
@@ -163,6 +164,7 @@ class F16Env(gym.Env):
         self.foe_pool = []
         self.foe_pool_prob = 0.5
         self.foe_policy = None
+        self.last_terms = {}
 
     @property
     def range(self):        return self.me_state.range
