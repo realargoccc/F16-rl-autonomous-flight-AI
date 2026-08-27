@@ -32,7 +32,7 @@ class F16DefEnv(F16Env):
         if curr_g > 9.0:
             r_rails -= 0.5 * (curr_g - 9.0) ** 2
         elif curr_g < -1.0:
-            r_rails -= 0.5 * (curr_g - 9.0) ** 2
+            r_rails -= 0.5 * (-1.0 - curr_g) ** 2
 
         #hard deck
         r_deck = 0.0
@@ -58,7 +58,7 @@ class F16DefEnv(F16Env):
 
         #terminal conditions
         r_terminal = 0.0
-        if truncated: r_terminal -= self.r_survive
+        if truncated: r_terminal += self.r_survive
         if deck_hit:  r_terminal -= 300.0
         if crashed:   r_terminal -= 300.0
         if self.foe_hp   - dmg_foe <= 0.0: r_terminal += 400.0
