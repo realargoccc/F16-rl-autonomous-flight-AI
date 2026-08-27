@@ -5,8 +5,7 @@ import math
 import numpy as np
 from flight_env import F16Env, RewardOut
 
-FOE_POOL = ["v2.8.0", "v2.8.1", "v2.8.2", "v2.8.3", "v2.8.4",
-            "v2.8.5", "v2.8.6", "v2.8.7", "v2.8.8", "v2.8.9"]
+FOE_POOL = ["v2.8.9"]
 
 
 class F16DefEnv(F16Env):
