@@ -186,8 +186,7 @@ class F16Env(gym.Env):
         model = PPO.load("ppo_f16_eleva_" + tag + ".zip", device = "cpu")
         with open("vecnorm_eleva_" + tag + ".pkl", "rb") as fh:
             vn = pickle.load(fh)
-        self.foe_pool.append((model, vn.obs_rms, float(vn.clip_obs), float(vn.epsilon)))
-        return len(self.foe_pool)
+        return(model, vn.obs_rms, float(vn.clip_obs), float(vn.epsilon))
 
     def load_foe(self, tag):
         self.foe_pool.append(self.load_policy(tag))

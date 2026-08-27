@@ -12,8 +12,6 @@ FOE_POOL = ["v2.8.0", "v2.8.1", "v2.8.2", "v2.8.3", "v2.8.4",
 class F16DefEnv(F16Env):
     def __init__(self):
         super().__init__()
-        if not hasattr(F16Env, "_reward"):
-            raise RuntimeError("F16Env has no _reward — extract it first or this overrides nothing")
 
         #reset() only flips side when foe_policy is not None, so the pool prob must be 1.0
         self.defensive_p = 1.0
