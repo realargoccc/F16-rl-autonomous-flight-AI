@@ -182,7 +182,7 @@ class F16Env(gym.Env):
     def aspect_angle(self): return self.me_state.aspect_angle
 
     @staticmethod
-    def load_policy(self, tag):
+    def load_policy(tag):
         model = PPO.load("ppo_f16_eleva_" + tag + ".zip", device = "cpu")
         with open("vecnorm_eleva_" + tag + ".pkl", "rb") as fh:
             vn = pickle.load(fh)
