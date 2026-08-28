@@ -159,6 +159,7 @@ class F16Env(gym.Env):
         self.aim_width = np.radians(20.0)
         self.hard_deck = 1524.0 #meters
         self.k_bridge = 300.0
+        self.bearing_spread = 40.0
         self.defensive_p = 0.0
         #opponent pool
         self.foe_pool = []
@@ -242,7 +243,6 @@ class F16Env(gym.Env):
 
         self.spawn_aspect = aspect_sign * float(self.np_random.uniform(*self.aspect_band))
         foe_heading = self.spawn_aspect % 360.0
-        foe_east = 0.0
         self.nominal_speed = 300.0
         if len(self.foe_pool) > 0 and self.np_random.random() < self.foe_pool_prob:
             self.foe_policy = self.foe_pool[(self.np_random.integers(len(self.foe_pool)))]
@@ -256,8 +256,13 @@ class F16Env(gym.Env):
         r = self.np_random.random()
         side = -1.0 if (self.foe_policy is not None and r < self.defensive_p) else 1.0
         self.setup = "defensive" if side < 0 else "offensive" 
-    
-        self.foe['ic/lat-gc-deg'] = lat0 + side * foe_range / 111320.0
+
+        #defense randomization for offense
+        nominal = 180.0 if side < 0 else 0.0
+        bearing = np.radians(nominal + float(self.np_random.uniform(-self.bearing_spread, self.bearing_spread)))
+        foe_north = foe_range * np.cos(bearing)
+        foe_east  = foe_range * np.sin(bearing)
+        self.foe['ic/lat-gc-deg'] = lat0 + foe_north / 111320.0
         self.foe['ic/long-gc-deg'] = lon0 + foe_east / (111320.0 * np.cos(np.radians(lat0)))
         self.foe['ic/h-sl-ft'] = (self.me['position/h-sl-meters'] + foe_rel_alt) / 0.3048 #agent's perspective 
         self.foe['ic/vc-kts'] = 450.0

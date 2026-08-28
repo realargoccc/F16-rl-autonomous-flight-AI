@@ -16,6 +16,8 @@ class F16DefEnv(F16Env):
         self.defensive_p = 1.0
         self.foe_pool_prob = 1.0
 
+        self.aspect_band = (0.0, 30.0)
+
         #reward coefficients
         self.k_bridge = 300.0
         self.r_survive = 0.0
@@ -81,6 +83,7 @@ if __name__ == "__main__":
     a, b = F16Env(), F16DefEnv()
     b.defensive_p = 0.0
     b.foe_pool_prob = 0.0
+    b.aspect_band = a.aspect_band
 
     oa, _ = a.reset(seed=7)
     ob, _ = b.reset(seed=7)
