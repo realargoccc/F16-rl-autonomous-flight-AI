@@ -140,7 +140,7 @@ class F16Env(gym.Env):
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(30,), dtype = np.float32)    #set throttle and elevator lower and upper bound
         self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
                                 high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
-        self.max_episodes_steps = 600
+        self.max_episodes_steps = 1800
         self.curr_step = 0
         self.target_alt_ft = 10000.0
         self.sim_steps_per_action = 12
@@ -150,22 +150,31 @@ class F16Env(gym.Env):
         self.gun_rmin = 450.0
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
-        self.k_damage = 60.0 # 2 reward per 0.1 hp damage dealt
+        self.hard_deck = 1524.0 #meters
+
+        #spawn randomization
         self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
         self.range_band = (700.0, 1200.0)
         self.aspect_band = (0.0, 80.0)
-        self.climb_deg = 15.0
-        self.dive_deg = 8.0
-        self.aim_width = np.radians(20.0)
-        self.hard_deck = 1524.0 #meters
-        self.k_bridge = 300.0
-        self.bearing_spread = 40.0
-        self.defensive_p = 0.0
+        self.climb_deg = 15.0       #only effective when foe_policy is None (scripted bandit)
+        self.dive_deg = 8.0         #same as above 
+
+        #reward weights - knobs
+        self.aim_width   = np.radians(20.0)  #width not gun cone
+        self.k_ata       = 0.1      #agent's nose pointing
+        self.k_threat    = 0.1      #enemy's nose pointing (at agent)
+        self.k_aim       = 2.0      #continuous aiming (pointing)
+        self.k_range     = 0.1      #maintaining distance
+        self.k_bridge    = 100.0    
+        self.deck_t_warn = 20.0     
+        self.k_deck_t    = 10.0    
+
         #opponent pool
         self.foe_pool = []
         self.foe_pool_prob = 0.5
         self.foe_policy = None
         self.last_terms = {}
+
 
     @property
     def range(self):        return self.me_state.range
