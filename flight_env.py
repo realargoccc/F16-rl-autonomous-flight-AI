@@ -166,8 +166,10 @@ class F16Env(gym.Env):
         self.k_aim       = 2.0      #continuous aiming (pointing)
         self.k_range     = 0.1      #maintaining distance
         self.k_bridge    = 100.0    
-        self.deck_t_warn = 20.0     
-        self.k_deck_t    = 10.0    
+        self.deck_warn_m = 304.8     
+        self.k_deck      = 2.0    
+        self.k_cone      = 2.0
+        
 
         #opponent pool
         self.foe_pool = []
@@ -377,6 +379,14 @@ class F16Env(gym.Env):
                          omega_pitch, aspect_ang)
         return obs, state
 
+    '''helper for aim'''
+    def aim_value(self, bs):
+        excess = max(0.0, bs - self.gun_cone)
+        approach = math.exp(-excess / self.aim_width)
+        #in cone
+        in_cone = max(0.0, 1.0 - bs/ self.gun_cone)
+        return approach + self.k_cone * in_cone
+
     def _reward(self, action, speed_knots, curr_g, alt_agl_m, dt,
                 crashed, foe_crashed, deck_hit, truncated, dmg_foe, dmg_me):
         #constraint rails — flat interior, wall at the edge
@@ -388,15 +398,13 @@ class F16Env(gym.Env):
 
         #below deck punishment
         r_deck = 0.0
-        alt_agl_kft = alt_agl_m / 304.8
-        if alt_agl_kft < 6.0:
-            r_deck -= 0.05 * (6.0 - alt_agl_kft) ** 2
+        warn = self.hard_deck + self.deck_warn_m
+        if alt_agl_m < warn:
+            multi = min((warn- alt_agl_m) / self.deck_warn_m, 1.0)
+            r_deck -= self.k_deck * (multi ** 2)
 
-        #punish huge oscillation (二阶差)
-        a_t  = np.asarray(action[0:4], dtype=np.float32)
-        a_t1 = self.prev_action[0:4]
-        a_t2 = self.prev_prev_action[0:4]
-        r_osc = -0.02 * float(np.sum((a_t - 2.0 * a_t1 + a_t2) ** 2))
+        #aim cone
+        r_aim = self.k_aim * (self.aim_value(self.boresight) - self.aim_value(foe_boresight))
 
         #wez pricing — dmg 由 step() 按统一物理算好传进来，不要在这里改它的数值
         r_wez = self.k_damage * (dmg_foe - dmg_me)
@@ -427,9 +435,9 @@ class F16Env(gym.Env):
         if self.foe_hp   - dmg_foe <= 0.0: r_term += 400.0
         if self.agent_hp - dmg_me  <= 0.0: r_term -= 400.0
 
-        self.last_terms = {"rails": r_rails, "deck": r_deck, "osc": r_osc, "wez": r_wez,
+        self.last_terms = {"rails": r_rails, "deck": r_deck, "wez": r_wez,
                            "adv": r_adv, "dis": r_dis, "term": r_term, "pot": pot}
-        reward = r_rails + r_deck + r_osc + r_wez + r_adv + r_dis + r_term
+        reward = r_rails + r_deck + r_wez + r_adv + r_dis + r_term
         return RewardOut(reward, dmg_foe, dmg_me, pot)
 
     def step(self, action):
