@@ -151,6 +151,9 @@ class F16Env(gym.Env):
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
         self.hard_deck = 1524.0 #meters
+        self.k_damage = 60.0
+        self.range_width = 900.0
+        self.k_close = 2.0
 
         #spawn randomization
         self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
@@ -158,6 +161,8 @@ class F16Env(gym.Env):
         self.aspect_band = (0.0, 80.0)
         self.climb_deg = 15.0       #only effective when foe_policy is None (scripted bandit)
         self.dive_deg = 8.0         #same as above 
+        self.bearing_spread = 40.0
+        self.defensive_p = 0.0
 
         #reward weights - knobs
         self.aim_width   = np.radians(20.0)  #width not gun cone
@@ -386,9 +391,22 @@ class F16Env(gym.Env):
         #in cone
         in_cone = max(0.0, 1.0 - bs/ self.gun_cone)
         return approach + self.k_cone * in_cone
+    '''helper for range'''
+    def range_value(self, range):
+        excess = max(0.0, range - self.gun_rmax)
+        approach = math.exp(-excess / self.range_width)
+
+        #in range
+        if range < self.gun_rmin:
+            in_range = range / self.gun_rmin
+        else:
+            in_band = max(0.0, (self.gun_rmax - range) / self.gun_rmax - self.gun_rmin))
+        return approach + self.k_close * in_range
 
     def _reward(self, action, speed_knots, curr_g, alt_agl_m, dt,
                 crashed, foe_crashed, deck_hit, truncated, dmg_foe, dmg_me):
+        foe_boresight = self.foe.boresight_to(self.me.pos())
+
         #constraint rails — flat interior, wall at the edge
         r_rails = 0.0
         if speed_knots < 150:
@@ -410,7 +428,10 @@ class F16Env(gym.Env):
         r_wez = self.k_damage * (dmg_foe - dmg_me)
 
         #positional advantage - ATA and AA
-        foe_boresight = self.foe.boresight_to(self.me.pos())
+        r_ata    = self.k_ata    * (0.5 - self.boresight/ np.pi)
+        r_threat = self.k_threat * (foe_boresight / np.pi - 0.5)
+
+        #potential
         eta_ata = 1.0 - self.boresight / np.pi      #1.0 = nose on nose
         eta_aa  = self.aspect_angle / np.pi         #1.0 = nose on tail
         agent_adv = 0.5 * eta_ata + 0.5 * eta_aa
@@ -419,13 +440,10 @@ class F16Env(gym.Env):
         foe_eta_aa  = self.foe_state.aspect_angle / np.pi
         foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
 
-        r_adv = 0.5 * (agent_adv - foe_adv)
         pot = self.k_bridge * min(agent_adv - foe_adv, 0.0)   #raw，telescope 交给 step()
 
         #distance away
-        threat = math.exp(-(foe_boresight / self.aim_width) ** 2)
-        dis = max(0.0, self.range - self.gun_rmax) + max(0.0, self.gun_rmin - self.range)
-        r_dis = -1.0 * min(dis / 1000.0, 1.0) * (1.0 - threat)
+        r_range = self.k_range * self.range_value(self.range)
 
         #terminals — hp 还没减，win/lose 读减法前的值
         #foe_crashed 故意不计分：付钱会长出「等对方自己摔」的均衡
@@ -435,9 +453,9 @@ class F16Env(gym.Env):
         if self.foe_hp   - dmg_foe <= 0.0: r_term += 400.0
         if self.agent_hp - dmg_me  <= 0.0: r_term -= 400.0
 
-        self.last_terms = {"rails": r_rails, "deck": r_deck, "wez": r_wez,
-                           "adv": r_adv, "dis": r_dis, "term": r_term, "pot": pot}
-        reward = r_rails + r_deck + r_wez + r_adv + r_dis + r_term
+        self.last_terms = {"rails": r_rails, "deck": r_deck, "wez": r_wez,"aim": r_aim, "ata": r_ata,
+                            "threat": r_threat, "dis": r_dis, "term": r_term, "pot": pot}
+        reward = r_rails + r_deck + r_wez + r_ata + r_threat + r_dis + r_term + r_aim
         return RewardOut(reward, dmg_foe, dmg_me, pot)
 
     def step(self, action):
