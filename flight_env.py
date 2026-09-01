@@ -381,12 +381,8 @@ class F16Env(gym.Env):
                 crashed, foe_crashed, deck_hit, truncated, dmg_foe, dmg_me):
         #constraint rails — flat interior, wall at the edge
         r_rails = 0.0
-        if speed_knots < 200:
-            r_rails -= 0.01 * (200 - speed_knots)
-        elif speed_knots > 800:
-            r_rails -= 0.01 * (speed_knots - 800)
-        if curr_g > 8.5:
-            r_rails -= 0.5 * (curr_g - 8.5) ** 2        #g back-off ramp
+        if speed_knots < 150:
+            r_rails -= 0.01 * (150 - speed_knots)
         elif curr_g < -1.0:
             r_rails -= 0.5 * (-1.0 - curr_g) ** 2
 
