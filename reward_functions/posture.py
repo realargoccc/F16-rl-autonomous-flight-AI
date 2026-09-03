@@ -20,3 +20,18 @@ class Posture(BaseReward):
         foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
 
         return agent_adv - foe_adv                      #[-1, 1]
+
+    def _range(self, env):
+        range = env.range
+        #out of band
+        approach = math.exp(-max(0.0, range - env.gun_rmax) / env.range_width)
+        #in the band
+        if range < env.gun_rmin:
+            in_band = range / env.gun_rmin
+        else:
+            in_band = max(0.0, (env.gun_rmax - range) / (env.gun_rmax - env.gun_rmin))
+
+        return (approach + env.k_close * in_band) / (1.0 + env.k_close)
+
+    def raw(self, env, computed):
+        return self._orientation(env, computed) * self._range(env)
