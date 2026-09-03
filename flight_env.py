@@ -169,12 +169,11 @@ class F16Env(gym.Env):
         self.k_ata       = 0.1      #agent's nose pointing
         self.k_threat    = 0.1      #enemy's nose pointing (at agent)
         self.k_aim       = 2.0      #continuous aiming (pointing)
-        self.k_range     = 0.1      #maintaining distance
+        self.k_range     = 2.0      #maintaining distance
         self.k_bridge    = 100.0    
         self.deck_warn_m = 304.8     
         self.k_deck      = 2.0    
         self.k_cone      = 2.0
-        
 
         #opponent pool
         self.foe_pool = []
@@ -208,7 +207,6 @@ class F16Env(gym.Env):
     def load_foe(self, tag):
         self.foe_pool.append(self.load_policy(tag))
         return len(self.foe_pool)
-
 
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
@@ -329,7 +327,6 @@ class F16Env(gym.Env):
         #LOS rotation rate vector
         rel_vel = foe_vel - agent_vel
         omega = np.cross(relative_data, rel_vel) / (range**2 + 1e-9)
-
         omega_scale = np.radians(30.0)
         omega_yaw = float(np.dot(omega, body_up)) / omega_scale
         omega_pitch = float(np.dot(omega, body_right)) / omega_scale
@@ -400,7 +397,7 @@ class F16Env(gym.Env):
         if range < self.gun_rmin:
             in_range = range / self.gun_rmin
         else:
-            in_band = max(0.0, (self.gun_rmax - range) / self.gun_rmax - self.gun_rmin))
+            in_range = max(0.0, (self.gun_rmax - range) / (self.gun_rmax - self.gun_rmin))
         return approach + self.k_close * in_range
 
     def _reward(self, action, speed_knots, curr_g, alt_agl_m, dt,
@@ -445,8 +442,7 @@ class F16Env(gym.Env):
         #distance away
         r_range = self.k_range * self.range_value(self.range)
 
-        #terminals — hp 还没减，win/lose 读减法前的值
-        #foe_crashed 故意不计分：付钱会长出「等对方自己摔」的均衡
+        #terminals 
         r_term = 0.0
         if deck_hit: r_term -= 300.0
         if crashed:  r_term -= 300.0
@@ -454,8 +450,8 @@ class F16Env(gym.Env):
         if self.agent_hp - dmg_me  <= 0.0: r_term -= 400.0
 
         self.last_terms = {"rails": r_rails, "deck": r_deck, "wez": r_wez,"aim": r_aim, "ata": r_ata,
-                            "threat": r_threat, "dis": r_dis, "term": r_term, "pot": pot}
-        reward = r_rails + r_deck + r_wez + r_ata + r_threat + r_dis + r_term + r_aim
+                            "threat": r_threat, "range": r_range, "term": r_term, "pot": pot}
+        reward = r_rails + r_deck + r_wez + r_ata + r_threat + r_range + r_term + r_aim
         return RewardOut(reward, dmg_foe, dmg_me, pot)
 
     def step(self, action):
