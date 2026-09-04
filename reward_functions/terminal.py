@@ -2,7 +2,7 @@ from .base import BaseReward
 
 class Terminal(BaseReward):
     '''win lose conditions'''
-    def raw(env, self, computed):
+    def raw(self, env, computed):
         r = 0.0
         if computed.deck_hit: r -= env.k_crash
         if computed.crashed:  r -= env.k_crash

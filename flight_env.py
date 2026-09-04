@@ -427,11 +427,11 @@ class F16Env(gym.Env):
         #Turning Policy Units
         curr_heading = self.me['attitude/psi-rad'] 
         foe_alt_agl_m = self.foe['position/h-agl-ft'] * 0.3048
-        foe_crashed = bool(foe_alt_agl_m < 30) or abs(self.foe['accelerations/Nz']) > 13.0
+        foe_crashed = bool(foe_alt_agl_m < 30) or (self.foe.get_sim_time() > 10.0 and abs(self.foe['accelerations/Nz']) > 10.0)
         #curr_bank = self.me['attitude/phi-deg'] 
         curr_g = self.me['accelerations/Nz']
         #aim_cone = np.radians(25.0)
-        crashed = bool(alt_agl_m < 30) or abs(self.me['accelerations/Nz']) > 13.0 
+        crashed = bool(alt_agl_m < 30) or (self.me.get_sim_time() > 10.0 and abs(self.me['accelerations/Nz']) > 10.0)
 
         delta_turn = (curr_heading - self.prev_heading + np.pi) % (2*np.pi) - np.pi
         self.turned += delta_turn

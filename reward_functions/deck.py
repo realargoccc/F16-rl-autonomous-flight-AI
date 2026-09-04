@@ -14,4 +14,4 @@ class Deck(BaseReward):
         if alt_km <= env.danger_alt:
             ph = np.clip(alt_km / env.danger_alt, 0.0, 1.0) - 1.0 - 1.0
 
-        return pv, ph
+        return pv + ph
