@@ -1,6 +1,6 @@
 import math 
 import numpy as np
-from base import BaseReward, range_window
+from .base import BaseReward, range_window
 
 class Posture(BaseReward):
     '''orientation * range, as a potential'''

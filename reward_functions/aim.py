@@ -1,5 +1,5 @@
 import math
-from base import range_window, BaseReward
+from .base import range_window, BaseReward
 
 class Aim(BaseReward):
     ''' gun cone is 3deg, continuous aim is flat'''
