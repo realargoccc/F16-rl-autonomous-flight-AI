@@ -131,8 +131,6 @@ class Aircraft():
 ObsState = namedtuple("ObsState", ["range", "boresight", "boresight_az", "closure",
                                    "omega_yaw", "omega_pitch", "aspect_angle"])
 
-RewardOut = namedtuple("RewardOut", ["reward", "dmg_foe", "dmg_me", "pot"])
-
 class F16Env(gym.Env):
     def __init__(self):
         self.me = Aircraft()
@@ -154,7 +152,6 @@ class F16Env(gym.Env):
         self.hard_deck = 1524.0 #meters
         self.k_damage = 60.0
         self.range_width = 900.0
-        self.k_close = 2.0
 
         #spawn randomization
         self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
@@ -292,7 +289,6 @@ class F16Env(gym.Env):
 
         self.foe_hp = 1.0
         self.agent_hp = 1.0
-        self.prev_bridge = None
         obs, self.me_state = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)  #contains the 8 observation data from def _get_obs
         self.foe_obs, self.foe_state = self._get_obs(self.foe, self.me, self.foe_hp, self.agent_hp)
         #delete this self.prev_range_err = self.range_err()
@@ -382,26 +378,7 @@ class F16Env(gym.Env):
         state = ObsState(float(range), boresight, float(boresight_az), float(closure), omega_yaw,
                          omega_pitch, aspect_ang)
         return obs, state
-
-    '''helper for aim'''
-    def aim_value(self, bs):
-        excess = max(0.0, bs - self.gun_cone)
-        approach = math.exp(-excess / self.aim_width)
-        #in cone
-        in_cone = max(0.0, 1.0 - bs/ self.gun_cone)
-        return approach + self.k_cone * in_cone
-    '''helper for range'''
-    def range_value(self, range):
-        excess = max(0.0, range - self.gun_rmax)
-        approach = math.exp(-excess / self.range_width)
-
-        #in range
-        if range < self.gun_rmin:
-            in_range = range / self.gun_rmin
-        else:
-            in_range = max(0.0, (self.gun_rmax - range) / (self.gun_rmax - self.gun_rmin))
-        return approach + self.k_close * in_range
-
+    
     def _reward(self, computed):
         reward = 0.0
 
@@ -409,18 +386,6 @@ class F16Env(gym.Env):
             reward += fn(self, computed)
         self.last_terms = {fn.name: fn.last for fn in self.reward_functions}
         return reward
-    
-        #terminals 
-        r_term = 0.0
-        if deck_hit: r_term -= 300.0
-        if crashed:  r_term -= 300.0
-        if self.foe_hp   - dmg_foe <= 0.0: r_term += 400.0
-        if self.agent_hp - dmg_me  <= 0.0: r_term -= 400.0
-
-        self.last_terms = {"rails": r_rails, "deck": r_deck, "wez": r_wez,"aim": r_aim, "ata": r_ata,
-                            "threat": r_threat, "range": r_range, "term": r_term, "pot": pot}
-        reward = r_rails + r_deck + r_wez + r_ata + r_threat + r_range + r_term + r_aim
-        return RewardOut(reward, dmg_foe, dmg_me, pot)
 
     def step(self, action):
         action = np.asarray(action, dtype=np.float32).copy()
