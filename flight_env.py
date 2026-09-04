@@ -164,15 +164,16 @@ class F16Env(gym.Env):
 
         #reward weights - knobs
         self.aim_width     = np.radians(20.0)  #width not gun cone
-        self.k_aim         = 0.3        #agent's nose pointing
-        self.k_cone        = 2.0        #enemy's nose pointing (at agent)
-        self.k_bridge      = 100.0      #continuous aiming (pointing)
-        self.close_width   = 150.0      #maintaining distance
+        self.k_aim         = 0.3       
+        self.k_cone        = 2.0        
+        self.k_bridge      = 100.0      
+        self.close_width   = 150.0      
         self.safe_alt      = 4.0      #km
         self.danger_alt    = 3.5      #km
         self.k_sink        = 0.2      #mach
         self.k_crash       = 300.0    
         self.k_win         = 400.0
+        self.reward_functions = [Posture(self), Aim(self), Gun(self), Deck(self), Terminal(self)]
 
         #opponent pool
         self.foe_pool = []
@@ -291,7 +292,14 @@ class F16Env(gym.Env):
         self.agent_hp = 1.0
         obs, self.me_state = self._get_obs(self.me, self.foe, self.agent_hp, self.foe_hp)  #contains the 8 observation data from def _get_obs
         self.foe_obs, self.foe_state = self._get_obs(self.foe, self.me, self.foe_hp, self.agent_hp)
-        #delete this self.prev_range_err = self.range_err()
+        spawn = StepComp(self.me['velocities/vc-fps'] * 0.592484,
+                         self.me['accelerations/Nz'],
+                         self.me['position/h-agl-ft'] * 0.3048,
+                         False, False, False, 0.0, 0.0,
+                         self.foe.boresight_to(self.me.pos()))
+        for fn in self.reward_functions:
+            fn.reset(self, spawn)
+
         info = {}
         return obs, info
         
