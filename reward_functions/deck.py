@@ -7,11 +7,11 @@ class Deck(BaseReward):
         sink_mach = -env.me['velocities/h-dot-fps'] * 0.3048 / 340.0 #positive climbing 
 
         pv = 0.0
-        if alt_km <= env.safe_altitude:
-            pv = -np.clip(sink_mach / env.k_sink * (env.safe_altitude - alt_km) / env.safe_altitude, 0.0, 1.0)
+        if alt_km <= env.safe_alt:
+            pv = -np.clip(sink_mach / env.k_sink * (env.safe_alt - alt_km) / env.safe_alt, 0.0, 1.0)
 
         ph = 0.0
-        if alt_km <= env.danger_altitude:
-            ph = np.clip(alt_km / env.danger_altitude, 0.0, 1.0) - 1.0 - 1.0
+        if alt_km <= env.danger_alt:
+            ph = np.clip(alt_km / env.danger_alt, 0.0, 1.0) - 1.0 - 1.0
 
         return pv, ph

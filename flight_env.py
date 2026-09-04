@@ -8,6 +8,7 @@ import math
 from collections import namedtuple
 from gymnasium.spaces import Box
 from stable_baselines3 import PPO
+from reward_functions import Posture, Aim, Gun, Deck, Terminal, StepComp
 
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
@@ -165,15 +166,16 @@ class F16Env(gym.Env):
         self.defensive_p = 0.0
 
         #reward weights - knobs
-        self.aim_width   = np.radians(20.0)  #width not gun cone
-        self.k_ata       = 0.1      #agent's nose pointing
-        self.k_threat    = 0.1      #enemy's nose pointing (at agent)
-        self.k_aim       = 2.0      #continuous aiming (pointing)
-        self.k_range     = 2.0      #maintaining distance
-        self.k_bridge    = 100.0    
-        self.deck_warn_m = 304.8     
-        self.k_deck      = 2.0    
-        self.k_cone      = 2.0
+        self.aim_width     = np.radians(20.0)  #width not gun cone
+        self.k_aim         = 0.3        #agent's nose pointing
+        self.k_cone        = 2.0        #enemy's nose pointing (at agent)
+        self.k_bridge      = 100.0      #continuous aiming (pointing)
+        self.close_width   = 150.0      #maintaining distance
+        self.safe_alt      = 4.0      #km
+        self.danger_alt    = 3.5      #km
+        self.k_sink        = 0.2      #mach
+        self.k_crash       = 300.0    
+        self.k_win         = 400.0
 
         #opponent pool
         self.foe_pool = []
@@ -400,48 +402,14 @@ class F16Env(gym.Env):
             in_range = max(0.0, (self.gun_rmax - range) / (self.gun_rmax - self.gun_rmin))
         return approach + self.k_close * in_range
 
-    def _reward(self, action, speed_knots, curr_g, alt_agl_m, dt,
-                crashed, foe_crashed, deck_hit, truncated, dmg_foe, dmg_me):
-        foe_boresight = self.foe.boresight_to(self.me.pos())
+    def _reward(self, computed):
+        reward = 0.0
 
-        #constraint rails — flat interior, wall at the edge
-        r_rails = 0.0
-        if speed_knots < 150:
-            r_rails -= 0.01 * (150 - speed_knots)
-        elif curr_g < -1.0:
-            r_rails -= 0.5 * (-1.0 - curr_g) ** 2
-
-        #below deck punishment
-        r_deck = 0.0
-        warn = self.hard_deck + self.deck_warn_m
-        if alt_agl_m < warn:
-            multi = min((warn- alt_agl_m) / self.deck_warn_m, 1.0)
-            r_deck -= self.k_deck * (multi ** 2)
-
-        #aim cone
-        r_aim = self.k_aim * (self.aim_value(self.boresight) - self.aim_value(foe_boresight))
-
-        #wez pricing — dmg 由 step() 按统一物理算好传进来，不要在这里改它的数值
-        r_wez = self.k_damage * (dmg_foe - dmg_me)
-
-        #positional advantage - ATA and AA
-        r_ata    = self.k_ata    * (0.5 - self.boresight/ np.pi)
-        r_threat = self.k_threat * (foe_boresight / np.pi - 0.5)
-
-        #potential
-        eta_ata = 1.0 - self.boresight / np.pi      #1.0 = nose on nose
-        eta_aa  = self.aspect_angle / np.pi         #1.0 = nose on tail
-        agent_adv = 0.5 * eta_ata + 0.5 * eta_aa
-
-        foe_eta_ata = 1.0 - foe_boresight / np.pi
-        foe_eta_aa  = self.foe_state.aspect_angle / np.pi
-        foe_adv = 0.5 * foe_eta_ata + 0.5 * foe_eta_aa
-
-        pot = self.k_bridge * min(agent_adv - foe_adv, 0.0)   #raw，telescope 交给 step()
-
-        #distance away
-        r_range = self.k_range * self.range_value(self.range)
-
+        for fn in self.reward_functions:
+            reward += fn(self, computed)
+        self.last_terms = {fn.name: fn.last for fn in self.reward_functions}
+        return reward
+    
         #terminals 
         r_term = 0.0
         if deck_hit: r_term -= 300.0
@@ -507,17 +475,14 @@ class F16Env(gym.Env):
             dmg_foe = scale * math.exp(-(self.boresight / self.gun_cone) ** 2)
             dmg_me  = scale * math.exp(-(foe_bs / self.gun_cone) ** 2)
 
-        out = self._reward(action, speed_knots, curr_g, alt_agl_m, dt,
-                           crashed, foe_crashed, deck_hit, truncated, dmg_foe, dmg_me)
+        computed = StepComp(speed_knots, curr_g, alt_agl_m,
+                            crashed, deck_hit, truncated,
+                            dmg_foe, dmg_me,
+                            self.foe.boresight_to(self.me.pos()))
+        reward = self._reward(computed)
 
-        self.foe_hp   -= out.dmg_foe
-        self.agent_hp -= out.dmg_me
-
-        #potential 记账留在 step()，两个 env 才会以同样方式 telescope
-        if self.prev_bridge is None:
-            self.prev_bridge = out.pot
-        reward = out.reward + (out.pot - self.prev_bridge)
-        self.prev_bridge = out.pot
+        self.foe_hp   -= dmg_foe
+        self.agent_hp -= dmg_me
 
         win  = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0.0)
