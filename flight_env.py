@@ -6,7 +6,7 @@ import os
 import random
 import math
 from collections import namedtuple
-from gymnasium.spaces import Box
+from gymnasium.spaces import Box, MultiDiscrete
 from stable_baselines3 import PPO
 from reward_functions import Posture, Aim, Gun, Deck, Terminal, StepComp
 
@@ -137,8 +137,10 @@ class F16Env(gym.Env):
         self.foe = Aircraft()
         super().__init__()
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(30,), dtype = np.float32)    #set throttle and elevator lower and upper bound
-        self.action_space = Box(low = np.array([-1.0, -1.0, -1.0, -1.0], dtype = np.float32),
-                                high = np.array([1.0, 1.0, 1.0, 1.0], dtype = np.float32), dtype = np.float32)
+        self.thro_bins = 30
+        self.surf_bins = 41     #bins = 20 is neutral
+        self.thro_lo, self.thro_hi = 0.4, 0.95 #no burner, no idle
+        self.action_space = MultiDiscrete([self.thro_bins, self.surf_bins, self.surf_bins, self.surf_bins])
         self.max_episodes_steps = 1800
         self.curr_step = 0
         self.target_alt_ft = 10000.0

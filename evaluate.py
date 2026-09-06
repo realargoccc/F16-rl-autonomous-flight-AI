@@ -21,12 +21,12 @@ import math
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 #fdm = jsbsim.FGFDMExec(ROOT, None)
 
-vecnorm_path = "vecnorm_eleva_v4.0.0.pkl"
+vecnorm_path = "vecnorm_eleva_v4.0.1.pkl"
 tmp = DummyVecEnv([lambda: F16Env()])
 vecnorm = VecNormalize.load(vecnorm_path, tmp)
 vecnorm.training = False           #Freeze stats during eval
 vecnorm.norm_reward = False
-model = PPO.load("ppo_f16_eleva_v4.0.0.zip")
+model = PPO.load("ppo_f16_eleva_v4.0.1.zip")
 raw = F16Env()
 raw.aspect_band = (0.0, 80.0)
 raw.defensive_p = 0.0
@@ -132,15 +132,18 @@ def get_episode(model, vecnorm, raw, seed=None):
         "setup": setup,
         "alt_lost": alt_lost,
         "mean_abs_bs": mean_abs_bs,
+        "dwell": len(wez_bs)
     }
     return summary
 
 def episode_key(epi):
-    #priority rank: reached wez, closest distance to wez, nose point direction, reward
+    #priority rank: win, length of wez, and boresight
     return (int(epi["win"]),
-            -epi["length"],
-            -epi["alt_lost"],
+            epi["dwell"],
             -epi["mean_abs_bs"])
+
+def failure_key(epi):
+    return (-epi["foe_hp"], epi["dwell"])
 
 def seed_sweep(model, vecnorm, raw, num_episodes=50):
     wins = 0        #total kills
@@ -195,6 +198,16 @@ with open ("eval_best.csv", "w", newline="") as f:     #open the csv
     #writer.writerows(peak_episode["rows"]) Option A:
     for row in best["rows"]:        #Option B: I prefer B as it is detailed 
         writer.writerow(row)
+
+losses = [e for e in episodes if not e["win"]]
+if losses:
+    worst = max(losses, key=failure_key)
+    with open("eval_worst.csv", "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=field_names)
+        writer.writeheader()
+        for row in worst["rows"]:
+            writer.writerow(row)
+    print(f"worst: foe_hp {worst['foe_hp']:.2f}  dwell {worst['dwell']}  len {worst['length']}")
 
 #run code: python evaluate.py
 # fix best-episode comparison
