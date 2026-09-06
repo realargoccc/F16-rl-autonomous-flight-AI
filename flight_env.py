@@ -177,7 +177,12 @@ class F16Env(gym.Env):
 
         #opponent pool
         self.foe_pool = []
+        self.foe_tags = []  #same version never loaded twice
+        self.foe_wins = []  #win count
+        self.foe_games = []
+        self.foe_idx = -1   #which member is flying current episode
         self.foe_pool_prob = 0.5
+        self.selfplay = "pfsp" #uniform over hisotry
         self.foe_policy = None
         self.last_terms = {}
 
@@ -205,8 +210,35 @@ class F16Env(gym.Env):
         return(model, vn.obs_rms, float(vn.clip_obs), float(vn.epsilon))
 
     def load_foe(self, tag):
+        if tag in self.foe_tags:
+            return len(self.foe_pool)
         self.foe_pool.append(self.load_policy(tag))
+        self.foe_tags.append(tag)
+        self.foe_wins.append(0.0)
+        self.foe_games.append(0.0)
         return len(self.foe_pool)
+
+    def _draw_foe(self):
+        '''pfsp is favoring the one that beat agent, fsp is uniform'''
+        n = len(self.foe_pool)
+        if self.selfplay != "pfsp":
+            return int(self.np_random.integers(n))
+        w = np.empty(n)
+        for i in range(n):
+            g = self.foe_games[i]
+            if g < 5.0:
+                p = 0.5
+            else:
+                p = self.foe_wins[i] / g
+            w[i] = p * p + 0.05
+        return int(self.np_random.choice(n, p=w / w.sum()))
+
+    def _record(self, win, loss):
+        if self.foe_idx < 0:
+            return
+        self.foe_games[self.foe_idx] += 1.0
+        if loss and not win:
+            self.foe_wins[self.foe_idx] += 1.0
 
     def reset(self, seed=None, options = None): #IMPORTANT: make sure to reset any CONSUMABLE units, trims maybe in the future
         super().reset(seed=seed)
@@ -259,8 +291,10 @@ class F16Env(gym.Env):
         foe_heading = self.spawn_aspect % 360.0
         self.nominal_speed = 300.0
         if len(self.foe_pool) > 0 and self.np_random.random() < self.foe_pool_prob:
-            self.foe_policy = self.foe_pool[(self.np_random.integers(len(self.foe_pool)))]
+            self.foe_idx = self._draw_foe()
+            self.foe_policy = self.foe_pool[self.foe_idx]
         else:
+            self.foe_idx = -1
             self.foe_policy = None
 
         #Foe spawn configs
@@ -296,7 +330,7 @@ class F16Env(gym.Env):
                          self.me['accelerations/Nz'],
                          self.me['position/h-agl-ft'] * 0.3048,
                          False, False, False, 0.0, 0.0,
-                         self.foe.boresight_to(self.me.pos()))
+                         self.foe.boresight_to(self.me.pos()), False)
         for fn in self.reward_functions:
             fn.reset(self, spawn)
 
@@ -439,6 +473,8 @@ class F16Env(gym.Env):
 
                 #hard deck ACM — 提到 _reward 之前，因为要作为参数传进去
         deck_hit = bool(alt_agl_m < self.hard_deck)
+        foe_deck_hit = bool(foe_alt_agl_m < self.hard_deck)
+        foe_down = foe_crashed or foe_deck_hit
 
         #WEZ physics — world state，所有子类必须一致，_reward 只负责定价
         dmg_foe = dmg_me = 0.0
@@ -451,7 +487,7 @@ class F16Env(gym.Env):
         computed = StepComp(speed_knots, curr_g, alt_agl_m,
                             crashed, deck_hit, truncated,
                             dmg_foe, dmg_me,
-                            self.foe.boresight_to(self.me.pos()))
+                            self.foe.boresight_to(self.me.pos()), foe_down)
         reward = self._reward(computed)
 
         self.foe_hp   -= dmg_foe
@@ -459,7 +495,9 @@ class F16Env(gym.Env):
 
         win  = bool(self.foe_hp <= 0.0)
         lose = bool(self.agent_hp <= 0.0)
-        terminated = crashed or lose or win or foe_crashed or deck_hit
+        terminated = crashed or lose or win or foe_crashed or deck_hit or foe_down
+        if terminated or truncated:
+            self._record(win, lose or crashed or deck_hit)
 
         # foe and agent bookkeeping — feeds the observation
         self.me.prev_elev, self.me.prev_aile = self.me.elev_cmd, self.me.aile_cmd

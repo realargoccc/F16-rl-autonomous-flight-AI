@@ -1,7 +1,7 @@
 from collections import namedtuple
 import math
 StepComp = namedtuple("StepComp", ["speed_knots", "curr_g", "alt_agl_m", "crashed", "deck_hit", "truncated",
-                                    "dmg_foe", "dmg_me", "foe_boresight"])
+                                    "dmg_foe", "dmg_me", "foe_boresight", "foe_down"])
 
 '''range halper for posture range'''
 

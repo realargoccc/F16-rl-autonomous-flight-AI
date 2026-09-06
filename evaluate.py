@@ -29,9 +29,9 @@ vecnorm.norm_reward = False
 model = PPO.load("ppo_f16_eleva_v4.0.0.zip")
 raw = F16Env()
 raw.aspect_band = (0.0, 80.0)
-raw.defensive_p = 1.0
-raw.load_foe("v2.8.9")
-raw.foe_pool_prob = 1.0
+raw.defensive_p = 0.0
+#raw.load_foe("v2.8.9")
+raw.foe_pool_prob = 0.0
 
 def get_episode(model, vecnorm, raw, seed=None):
     obs, _ = raw.reset(seed=seed)     #reset observations
