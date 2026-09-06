@@ -431,6 +431,12 @@ class F16Env(gym.Env):
         self.last_terms = {fn.name: fn.last for fn in self.reward_functions}
         return reward
 
+    def decode(self, action):
+        a = np.asarray(action, dtype=np.float32)
+        thro = self.thro_lo + (a[0] / (self.thro_bins - 1.0)) * (self.thro_hi - self.thro_lo)
+        surf = a[1:] / ((self.surf_bins - 1.0) / 2.0) - 1.0 #wrapped [-1, 1]
+        return np.array([thro * 2.0 - 1.0, surf[0], surf[1], surf[2]], dtype=np.float32)
+    
     def step(self, action):
         action = np.asarray(action, dtype=np.float32).copy()
         if self.mirror:
