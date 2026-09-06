@@ -451,6 +451,9 @@ class F16Env(gym.Env):
             model, rms, clip, eps = self.foe_policy #rms = runningmeanstd
             nobs = np.clip((self.foe_obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
             foe_action, _ = model.predict(nobs.astype(np.float32), deterministic=True)
+            if np.issubdtype(foe_action.dtype, np.integer):
+                foe_action = self.decode(foe_action)
+                
         self.foe.ctrl_input(foe_action)
         self.me.ctrl_input(cmd)
 

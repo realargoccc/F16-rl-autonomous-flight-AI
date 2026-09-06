@@ -71,8 +71,6 @@ if __name__ == "__main__":
     model = PPO.load(model_load, env=env, ent_coef = 0.002, verbose = 1, tensorboard_log="./tb_logs/")
     #model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 0.03, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
 
-    with torch.no_grad():
-        model.policy.log_std.fill_(-0.7) # hard set the explore of each axis to 0.5 (avoiding bang bang)
     pool = SelfPlayPool(every=snapshot_every, prefix="v4.0.1", warmup=snapshot_warm, prob=pool_prob)
     model.learn(total_timesteps= 3_000_000, callback=pool, reset_num_timesteps=False, tb_log_name="v4.0.1") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
     model.save(model_path)
