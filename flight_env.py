@@ -440,8 +440,9 @@ class F16Env(gym.Env):
     def step(self, action):
         action = np.asarray(action, dtype=np.float32).copy()
         if self.mirror:
-            action[2] *= -1.0
-            action[3] *= -1.0
+            action[2] = (self.surf_bins - 1) - action[2]
+            action[3] = (self.surf_bins - 1) - action[3]
+        cmd = self.decode(action)
         if self.foe_policy is None:
             los = self.me.pos() - self.foe.pos()
             exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
@@ -451,7 +452,7 @@ class F16Env(gym.Env):
             nobs = np.clip((self.foe_obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
             foe_action, _ = model.predict(nobs.astype(np.float32), deterministic=True)
         self.foe.ctrl_input(foe_action)
-        self.me.ctrl_input(action)
+        self.me.ctrl_input(cmd)
 
         #run 
         self.me.run(self.sim_steps_per_action)
@@ -509,11 +510,9 @@ class F16Env(gym.Env):
 
         # foe and agent bookkeeping — feeds the observation
         self.me.prev_elev, self.me.prev_aile = self.me.elev_cmd, self.me.aile_cmd
-        self.me.prev_rudder, self.me.prev_throttle = self.me.rudd_cmd, action[0]
+        self.me.prev_rudder, self.me.prev_throttle = self.me.rudd_cmd, cmd[0]
         self.foe.prev_elev, self.foe.prev_aile = self.foe.elev_cmd, self.foe.aile_cmd
         self.foe.prev_rudder, self.foe.prev_throttle = self.foe.rudd_cmd, foe_action[0]
-        self.prev_prev_action = self.prev_action.copy()
-        self.prev_action = np.array(action, dtype=np.float32)
 
         info = {"crashed": crashed, "foe_crashed": foe_crashed, "win":win, "deck_hit": deck_hit}
         return obs, float(reward), terminated, truncated, info    
