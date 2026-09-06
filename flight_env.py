@@ -149,7 +149,7 @@ class F16Env(gym.Env):
         self.gun_rmin = 450.0
         self.gun_rmax = 900.0
         self.gun_cone = np.radians(3.0)
-        self.hard_deck = 1524.0 #meters
+        self.hard_deck = 2500.0 #meters
         self.k_damage = 60.0
         self.range_width = 900.0
 
@@ -166,7 +166,7 @@ class F16Env(gym.Env):
         self.aim_width     = np.radians(20.0)  #width not gun cone
         self.k_aim         = 0.3       
         self.k_cone        = 2.0        
-        self.k_bridge      = 100.0      
+        self.k_bridge      = 200.0      
         self.close_width   = 150.0      
         self.safe_alt      = 4.0      #km
         self.danger_alt    = 3.5      #km
