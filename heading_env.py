@@ -113,3 +113,17 @@ class HeadingEnv(gym.Env):
             yaw_rate / 0.5,
             ], dtype=np.float32)
         return np.clip(obs, -10.0, 10.0)
+
+    def _reward(self, crashed, deck_hit):
+        '''geometric mean of four actions'''
+        d_alt = abs(self.tgt_alt - self.me['position/h-sl-meters'])
+        d_hdg = abs(math.degrees((self.tgt_hdg - self.me['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi))
+        d_spd = abs(self.tgt_spd - self.me['velocities/u-fps'] * 0.3048)
+        bank = abs(math.degrees(self.me['attitude/phi-rad']))
+
+        r_hdg  = math.exp(-d_hdg / self.hdg_scale)
+        r_alt  = math.exp(-d_alt / self.alt_scale)
+        r_roll = math.exp(-bank  / self.roll_scale)
+        r_spd  = math.exp(-d_spd / self.spd_scale)
+        track  = (r_hdg * r_alt * r_roll * r_spd) ** 0.25
+                                 
