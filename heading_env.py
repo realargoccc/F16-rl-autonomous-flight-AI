@@ -25,6 +25,7 @@ class HeadingEnv(gym.Env):
         self.max_hdg_step = 180.0           #deg
         self.max_alt_step = 2134.0          #m, 7000 ft
         self.max_spd_step = 100.0           #m/s
+        self.alt_band = (4572.0, 10668.0)   #m, 15k - 35k ft
         self.ramp = [0.2, 0.4, 0.6, 0.8, 1.0]
 
         #reward scale
@@ -68,3 +69,10 @@ class HeadingEnv(gym.Env):
         self._new_target()
 
         return self._get_obs(), {}
+
+    def _new_target(self):
+        '''a ramp that randomly increment whenever the run is succeed'''
+        d = self.ramp[min(self.turn_counts, len(self.ramp) - 1)]
+        self.tgt_hdg = (self.tgt_hdg + np.radians(self.np_random.uniform(-d, d) * self.max_hdg_step)) % (2 * np.pi)
+        self.tgt_alt = float(np.clip(self.tgt_alt + self.np_random.uniform(-d, d) * self.max_alt_step, *self.alt_band))
+        self.tgt_spd = float(np.clip(self.tgt_spd + self.np_random.uniform(-d, d) * self.max_spd_step, *self.spd_band))
