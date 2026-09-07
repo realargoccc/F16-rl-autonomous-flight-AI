@@ -4,7 +4,6 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import CheckpointCallback
 
 model_load = "controller_v1.0.0.zip"
 model_path = "controller_v1.0.1.zip"
@@ -21,5 +20,5 @@ if __name__ == "__main__":
     
     model = PPO.load(model_load, env=env, ent_coef = 1e-3, verbose=1, tensorboard_log="./tb_logs/")
 
-    model.learn(total_timesteps=5_000_000, tb_log_name="controller_v1.0.0")
+    model.learn(total_timesteps=5_000_000, reset_num_timesteps= False, tb_log_name="controller_v1.0.1")
     model.save(model_path)
