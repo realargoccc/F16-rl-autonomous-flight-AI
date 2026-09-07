@@ -27,4 +27,4 @@ class Posture(BaseReward):
 
     def raw(self, env, computed):
         ao, ta, range_m = ao_ta_range(env.me.pos(), env.me.vel(), env.foe.pos(), env.foe.vel())
-        return self._orientation(ao, ta) * self._range(range_m / 1000.0)
+        return self._orientation(ao, ta) * range_window(env, range_m)
