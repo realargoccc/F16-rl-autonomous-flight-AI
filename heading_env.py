@@ -26,6 +26,7 @@ class HeadingEnv(gym.Env):
         self.max_alt_step = 2134.0          #m, 7000 ft
         self.max_spd_step = 100.0           #m/s
         self.alt_band = (4572.0, 10668.0)   #m, 15k - 35k ft
+        self.spd_band = (150.0, 330.0)
         self.ramp = [0.2, 0.4, 0.6, 0.8, 1.0]
 
         #reward scale

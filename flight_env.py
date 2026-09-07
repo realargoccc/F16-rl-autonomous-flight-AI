@@ -15,6 +15,13 @@ THRO_LO, THRO_HI = 0.4, 0.95
 SIM_STEPS_PER_ACTION = 12   #120hz
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
+def decode_bins(action):
+        '''bins -> continuous commands ctrl_input expects'''
+        a = np.asarray(action, dtype=np.float32)
+        thro = THRO_LO + (a[0] / (THRO_BINS - 1.0)) * (THRO_HI - THRO_LO)
+        surf = a[1:] / ((SURF_BINS - 1.0) / 2.0) - 1.0
+        return np.array([thro * 2.0 - 1.0, surf[0], surf[1], surf[2]], dtype=np.float32)
+
 class Aircraft():
     def __init__(self):
         self.fdm = jsbsim.FGFDMExec(ROOT, None)
@@ -433,13 +440,8 @@ class F16Env(gym.Env):
         self.last_terms = {fn.name: fn.last for fn in self.reward_functions}
         return reward
 
-    def decode_bins(action):
-        '''bins -> continuous commands ctrl_input expects'''
-        a = np.asarray(action, dtype=np.float32)
-        thro = THRO_LO + (a[0] / (THRO_BINS - 1.0)) * (THRO_HI - THRO_LO)
-        surf = a[1:] / ((SURF_BINS - 1.0) / 2.0) - 1.0
-        return np.array([thro * 2.0 - 1.0, surf[0], surf[1], surf[2]], dtype=np.float32)
-   
+    def decode(self, action):
+        return decode_bins(action)
     
     def step(self, action):
         action = np.asarray(action, dtype=np.float32).copy()
