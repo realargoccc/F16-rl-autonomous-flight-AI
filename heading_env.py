@@ -56,8 +56,15 @@ class HeadingEnv(gym.Env):
         self.me.run_ic()
         self.me.set_origin(self.me['position/lat-geod-deg'], self.me['position/long-gc-deg'])
 
-        #
+        #300 steps at 0.1s
         self.curr_step = 0
         self.turn_counts = 0
         dt = self.me.get_delta_t() * self.sim_steps_per_action
         self.check_steps = int(round(self.check_interval / dt)) 
+
+        self.tgt_hdg = self.me['attitude/psi-rad']
+        self.tgt_alt = self.me['position/h-sl-meters']
+        self.tgt_spd = self.me['velocities/u-fps'] * 0.3048
+        self._new_target()
+
+        return self._get_obs(), {}
