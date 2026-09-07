@@ -164,7 +164,7 @@ class HeadingEnv(gym.Env):
                 "turn_counts": self.turn_counts}
         return self._get_obs(), float(reward), terminated, truncated, info
 
-    def _overload(self):
+    def _overloaded(self):
         if self.curr_step <= 100:   #10s grace period for spawn transients
             return False
         return bool(abs(self.me['accelerations/Nz']) > 10.0)
