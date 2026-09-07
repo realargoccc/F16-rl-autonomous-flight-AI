@@ -2,7 +2,7 @@ import gymnasium as gym
 import numpy as np
 import math
 from gymnasium.spaces import Box, MultiDiscrete
-from flight_env import Aircraft, THRO_BINS, SURF_BINS, THRO_LO, THRO_HI, SIM_STEPS_PER_ACTION
+from flight_env import Aircraft, decode_bins, THRO_BINS, SURF_BINS, THRO_LO, THRO_HI, SIM_STEPS_PER_ACTION
 
 class HeadingEnv(gym.Env):
     '''fly to commanded heading (pretrained controller)'''
@@ -126,4 +126,14 @@ class HeadingEnv(gym.Env):
         r_roll = math.exp(-bank  / self.roll_scale)
         r_spd  = math.exp(-d_spd / self.spd_scale)
         track  = (r_hdg * r_alt * r_roll * r_spd) ** 0.25
-                                 
+
+        r_term = -self.k_crash if (crashed or deck_hit) else 0.0
+        self.last_terms = {"hdg": r_hdg, "alt": r_alt, "roll": r_roll,
+                           "spd": r_spd, "track": track, "term": r_term}
+
+        return track + r_term
+
+    def decode(self, action):
+        return decode_bins(action)
+    
+    def step(self, action):
