@@ -10,6 +10,9 @@ from gymnasium.spaces import Box, MultiDiscrete
 from stable_baselines3 import PPO
 from reward_functions import Posture, Aim, Gun, Deck, Terminal, StepComp
 
+THRO_BINS, SURF_BINS = 30, 41
+THRO_LO, THRO_HI = 0.4, 0.95
+SIM_STEPS_PER_ACTION = 12   #120hz
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
 
 class Aircraft():
@@ -137,14 +140,13 @@ class F16Env(gym.Env):
         self.foe = Aircraft()
         super().__init__()
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(30,), dtype = np.float32)    #set throttle and elevator lower and upper bound
-        self.thro_bins = 30
-        self.surf_bins = 41     #bins = 20 is neutral
-        self.thro_lo, self.thro_hi = 0.4, 0.95 #no burner, no idle
+        self.thro_bins, self.surf_bins = THRO_BINS, SURF_BINS     #bins = 20 is neutral
+        self.thro_lo, self.thro_hi = THRO_LO, THRO_HI #no burner, no idle
         self.action_space = MultiDiscrete([self.thro_bins, self.surf_bins, self.surf_bins, self.surf_bins])
         self.max_episodes_steps = 1800
         self.curr_step = 0
         self.target_alt_ft = 10000.0
-        self.sim_steps_per_action = 12
+        self.sim_steps_per_action = SIM_STEPS_PER_ACTION
 
         #WEZ (Weapon Engagement Zone) configs
         self.max_hp = 1.0
