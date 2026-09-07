@@ -37,3 +37,13 @@ def control_obs(ac, tgt_alt, tgt_hdg, tgt_spd):
         yaw_rate / 0.5,
     ], dtype=np.float32)
     return np.clip(obs, -10.0, 10.0)
+
+class LowLevel:
+    '''frozen controller, get back stick bins'''
+
+    def __init__(self, tag="controller_v1.0.1"):
+        self.model = PPO.load(tag + ".zip", device="cpu")
+
+    def bins(self, ac, tgt_alt, tgt_hdg, tgt_spd):
+        b, _ = self.model.predict(control_obs(ac, tgt_alt, tgt_hdg, tgt_spd), deterministic=True)
+        return b

@@ -9,6 +9,7 @@ from collections import namedtuple
 from gymnasium.spaces import Box, MultiDiscrete
 from stable_baselines3 import PPO
 from reward_functions import Posture, Aim, Gun, Deck, Terminal, StepComp
+from controller import LowLevel
 
 THRO_BINS, SURF_BINS = 30, 41
 THRO_LO, THRO_HI = 0.4, 0.95
@@ -147,10 +148,11 @@ class F16Env(gym.Env):
         self.foe = Aircraft()
         super().__init__()
         self.observation_space = Box(low=-np.inf, high = np.inf, shape=(30,), dtype = np.float32)    #set throttle and elevator lower and upper bound
-        self.thro_bins, self.surf_bins = THRO_BINS, SURF_BINS     #bins = 20 is neutral
-        self.thro_lo, self.thro_hi = THRO_LO, THRO_HI #no burner, no idle
-        self.action_space = MultiDiscrete([self.thro_bins, self.surf_bins, self.surf_bins, self.surf_bins])
-        self.max_episodes_steps = 1800
+        self.cmd_alt = np.array([300.0, 0.0, -300.0])
+        self.cmd_hdg = np.radians(np.array([-30.0, -15.0, 0.0, 15.0, 30.0]))
+        self.cmd_spd = np.array([20.0, 0.0, -20.0])
+        self.action_space = MultiDiscrete([len(self.cmd_alt), len(self.cmd_hdg), len(self.cmd_spd)])
+        self.lowlevel = self.LowLevel()
         self.curr_step = 0
         self.target_alt_ft = 10000.0
         self.sim_steps_per_action = SIM_STEPS_PER_ACTION
@@ -196,7 +198,6 @@ class F16Env(gym.Env):
         self.selfplay = "pfsp" #uniform over hisotry
         self.foe_policy = None
         self.last_terms = {}
-
 
     @property
     def range(self):        return self.me_state.range
@@ -270,8 +271,6 @@ class F16Env(gym.Env):
         #bandit data
 
         self.curr_step = 0
-        self.prev_action = np.zeros(4, dtype=np.float32) #currently 4 actions in action space
-        self.prev_prev_action = np.zeros(4, dtype=np.float32)
 
         #set fight location for both
         lat0 = self.me['position/lat-geod-deg']
@@ -444,7 +443,7 @@ class F16Env(gym.Env):
         return decode_bins(action)
     
     def step(self, action):
-        action = np.asarray(action, dtype=np.float32).copy()
+        action = np.asarray(action).copy()
         if self.mirror:
             action[2] = (self.surf_bins - 1) - action[2]
             action[3] = (self.surf_bins - 1) - action[3]
