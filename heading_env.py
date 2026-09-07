@@ -76,3 +76,40 @@ class HeadingEnv(gym.Env):
         self.tgt_hdg = (self.tgt_hdg + np.radians(self.np_random.uniform(-d, d) * self.max_hdg_step)) % (2 * np.pi)
         self.tgt_alt = float(np.clip(self.tgt_alt + self.np_random.uniform(-d, d) * self.max_alt_step, *self.alt_band))
         self.tgt_spd = float(np.clip(self.tgt_spd + self.np_random.uniform(-d, d) * self.max_spd_step, *self.spd_band))
+
+    def _get_obs(self):
+        alt        = self.me['position/h-sl-meters']
+        roll       = self.me['attitude/phi-rad']
+        pitch      = self.me['attitude/theta-rad']
+        heading    = self.me['attitude/psi-rad']
+
+        fwd_speed  = self.me['velocities/u-fps'] * 0.3048     #body x, nose
+        side_speed = self.me['velocities/v-fps'] * 0.3048     #body y, right wing
+        vert_speed = self.me['velocities/w-fps'] * 0.3048     #body z, belly
+        ias        = self.me['velocities/vc-fps'] * 0.3048
+
+        roll_rate  = self.me['velocities/p-rad_sec']
+        pitch_rate = self.me['velocities/q-rad_sec']
+        yaw_rate   = self.me['velocities/r-rad_sec']
+
+        d_alt = self.tgt_alt - alt
+        d_hdg = (self.tgt_hdg - heading + np.pi) % (2 * np.pi) - np.pi
+        d_spd = self.tgt_spd - fwd_speed
+
+        obs = np.array([
+            d_alt / 3000.0, 
+            d_hdg,
+            d_spd / 100.0, 
+            alt / 5000.0,
+            np.sin(roll),
+            np.cos(roll),
+            np.sin(pitch),
+            fwd_speed / 340.0,
+            side_speed / 50.0,
+            vert_speed / 50.0,
+            ias / 340.0,
+            roll_rate / np.pi,
+            pitch_rate / 1.0,
+            yaw_rate / 0.5,
+            ], dtype=np.float32)
+        return np.clip(obs, -10.0, 10.0)
