@@ -48,3 +48,16 @@ class HeadingEnv(gym.Env):
         self.me['propulsion/tank[0]/contents-lbs'] = 1500.0
         self.me['propulsion/tank[1]/contents-lbs'] = 1500.0
         self.me['propulsion/engine/set-running'] = 1.0
+
+        #no wings level, whatever the attitude left it
+        self.me['ic/phi-deg'] = float(self.np_random.uniform(-45.0, 45.0))
+        self.me['ic/theta-deg'] = float(self.np_random.uniform(-15.0, 15.0))
+        self.me['ic/psi-true-deg'] = float(self.np_random.uniform(0.0, 360.0))
+        self.me.run_ic()
+        self.me.set_origin(self.me['position/lat-geod-deg'], self.me['position/long-gc-deg'])
+
+        #
+        self.curr_step = 0
+        self.turn_counts = 0
+        dt = self.me.get_delta_t() * self.sim_steps_per_action
+        self.check_steps = int(round(self.check_interval / dt)) 
