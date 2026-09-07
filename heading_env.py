@@ -10,7 +10,7 @@ class HeadingEnv(gym.Env):
     def __init__(self):
         super().__init__()
         self.me = Aircraft()
-        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(15,), dtype=np.float32)
+        self.observation_space = Box(low=-np.inf, high=np.inf, shape=(14,), dtype=np.float32)
         self.action_space = MultiDiscrete([THRO_BINS, SURF_BINS, SURF_BINS, SURF_BINS])
         self.thro_bins, self.surf_bins = THRO_BINS, SURF_BINS
         self.thro_lo,   self.thro_hi   = THRO_LO,   THRO_HI
@@ -29,10 +29,10 @@ class HeadingEnv(gym.Env):
         self.ramp = [0.2, 0.4, 0.6, 0.8, 1.0]
 
         #reward scale
-        self.hdg_scale = 5.0          #deg
-        self.alt_scale = 15.24        #m, 50ft
-        self.roll_scale = 0.35        #rad, 20 deg
-        self.spd_scale = 24.0         #m/s
+        self.hdg_scale = 20.0         #deg
+        self.alt_scale = 400.0        #m, 50ft
+        self.roll_scale = 45.0        #rad, 20 deg
+        self.spd_scale = 50.0         #m/s
 
         self.hard_deck = 2500.0
         self.k_crash = 300.0
