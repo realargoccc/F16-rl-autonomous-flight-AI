@@ -168,7 +168,7 @@ class F16Env(gym.Env):
         self.aim_width     = np.radians(20.0)  #width not gun cone
         self.k_aim         = 0.3       
         self.k_cone        = 2.0        
-        self.k_bridge      = 200.0      
+        self.k_bridge      = 240.0      
         self.close_width   = 150.0      
         self.safe_alt      = 4.0      #km
         self.danger_alt    = 3.5      #km
@@ -453,7 +453,7 @@ class F16Env(gym.Env):
             foe_action, _ = model.predict(nobs.astype(np.float32), deterministic=True)
             if np.issubdtype(foe_action.dtype, np.integer):
                 foe_action = self.decode(foe_action)
-                
+
         self.foe.ctrl_input(foe_action)
         self.me.ctrl_input(cmd)
 
