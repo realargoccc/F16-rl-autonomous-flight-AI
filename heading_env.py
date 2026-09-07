@@ -137,3 +137,33 @@ class HeadingEnv(gym.Env):
         return decode_bins(action)
     
     def step(self, action):
+        self.me.ctrl_input(decode_bins(action))
+        self.me.run(self.sim_steps_per_action)
+        self.curr_step += 1
+
+        alt_agl   = self.me['position/h-agl-ft'] * 0.3048
+        crashed   = bool(alt_agl < 30) or self._overloaded()
+        deck_hit  = bool(alt_agl < self.hard_deck)
+        truncated = bool(self.curr_step >= self.max_episodes_steps)
+
+        #score against the target
+        reward = self._reward(crashed, deck_hit)
+
+        missed = False
+        if self.curr_step % self.check_steps == 0:
+            d_hdg = abs(math.degrees((self.tgt_hdg - self.me['attitude/psi-rad'] + np.pi) % (2 * np.pi) - np.pi))
+            if d_hdg > self.pass_band:
+                missed = True
+            else:
+                self.turn_counts += 1
+                self._new_target()
+
+        terminated = crashed or deck_hit or missed
+        info = {"crashed": crashed, "deck_hit": deck_hit, "missed": missed,
+                "turn_counts": self.turn_counts}
+        return self._get_obs(), float(reward), terminated, truncated, info
+
+    def _overload(self):
+        if self.curr_step <= 100:   #10s grace period for spawn transients
+            return False
+        return bool(abs(self.me['accelerations/Nz']) > 10.0)
