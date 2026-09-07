@@ -69,10 +69,10 @@ if __name__ == "__main__":
 
     #tensorboard --logdir=./tb_logs/
     #model = PPO.load(model_load, env=env, ent_coef = 0.002, verbose = 1, tensorboard_log="./tb_logs/")
-    model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 0.03, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
+    model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 1e-3, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
 
     pool = SelfPlayPool(every=snapshot_every, prefix="v4.0.2", warmup=snapshot_warm, prob=pool_prob)
-    model.learn(total_timesteps= 3_000_000, callback=pool, tb_log_name="v4.0.2") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
+    model.learn(total_timesteps= 3_000_000, tb_log_name="v4.0.2") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
     model.save(model_path)
     env.save(vecnorm_path)
 
