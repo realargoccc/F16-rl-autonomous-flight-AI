@@ -180,7 +180,8 @@ class F16Env(gym.Env):
         self.aim_width     = np.radians(20.0)  #width not gun cone
         self.k_aim         = 0.3       
         self.k_cone        = 2.0        
-        self.k_bridge      = 240.0      
+        self.k_bridge      = 125.0      
+        self.k_far         = 1.0
         self.close_width   = 150.0      
         self.safe_alt      = 4.0      #km
         self.danger_alt    = 3.5      #km
