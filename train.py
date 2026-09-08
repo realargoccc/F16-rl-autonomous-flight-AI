@@ -50,7 +50,7 @@ def make_env():
     #    env.load_foe(vers)
     env.foe_pool_prob = 0.0
     env.selfplay = "pfsp"
-    return Monitor(env, info_keywords=("crashed", "foe_crashed", "win", "deck_hit"))
+    return Monitor(env, info_keywords=("crashed", "foe_crashed", "win", "deck_hit", "foe_down"))
 
 if __name__ == "__main__":
     check_env(F16Env())

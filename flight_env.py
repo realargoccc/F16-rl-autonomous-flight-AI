@@ -527,7 +527,7 @@ class F16Env(gym.Env):
         self.foe.prev_elev, self.foe.prev_aile = self.foe.elev_cmd, self.foe.aile_cmd
         self.foe.prev_rudder, self.foe.prev_throttle = self.foe.rudd_cmd, foe_action[0]
 
-        info = {"crashed": crashed, "foe_crashed": foe_crashed, "win":win, "deck_hit": deck_hit}
+        info = {"crashed": crashed, "foe_crashed": foe_crashed, "win":win, "deck_hit": deck_hit, "foe_down": foe_down}
         return obs, float(reward), terminated, truncated, info    
         
 if __name__ == "__main__":
