@@ -72,11 +72,7 @@ if __name__ == "__main__":
     #model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 1e-3, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
 
     pool = SelfPlayPool(every=snapshot_every, prefix="v4.0.9", warmup=snapshot_warm, prob=pool_prob)
-<<<<<<< HEAD
-    model.learn(total_timesteps= 3_000_000, reset_num_timesteps=False, tb_log_name="v4.0.9") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
-=======
     model.learn(total_timesteps= 3_000_000, callback=pool, reset_num_timesteps=False, tb_log_name="v4.0.9") #reset_num_timesteps=False (Add when train continous, remove when train fresh)
->>>>>>> 9640f3d2 (trained results of 409 selfplay)
     model.save(model_path)
     env.save(vecnorm_path)
 
