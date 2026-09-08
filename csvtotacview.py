@@ -1,8 +1,8 @@
 import csv
 import math
 
-csv_path = "eval_best.csv"
-acmi_path = "f16_intercept_v4.0.9.acmi"
+csv_path = "eval_worst.csv"
+acmi_path = "f16_intercept_v4.0.9w.acmi"
 
 #nellis afb lat and lon (fight location)
 ref_lat = 36.20
