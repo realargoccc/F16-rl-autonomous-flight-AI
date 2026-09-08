@@ -152,7 +152,8 @@ class F16Env(gym.Env):
         self.cmd_hdg = np.radians(np.array([-30.0, -15.0, 0.0, 15.0, 30.0]))
         self.cmd_spd = np.array([20.0, 0.0, -20.0])
         self.action_space = MultiDiscrete([len(self.cmd_alt), len(self.cmd_hdg), len(self.cmd_spd)])
-        self.lowlevel = self.LowLevel()
+        self.lowlevel = LowLevel()
+        self.max_episodes_steps = 1800
         self.curr_step = 0
         self.target_alt_ft = 10000.0
         self.sim_steps_per_action = SIM_STEPS_PER_ACTION
@@ -445,9 +446,13 @@ class F16Env(gym.Env):
     def step(self, action):
         action = np.asarray(action).copy()
         if self.mirror:
-            action[2] = (self.surf_bins - 1) - action[2]
-            action[3] = (self.surf_bins - 1) - action[3]
-        cmd = self.decode(action)
+            action[1] = (len(self.cmd_hdg) - 1) - action[1]   #left/right flip only
+
+        #policy commands a change
+        tgt_alt = self.me['position/h-sl-meters'] + self.cmd_alt[action[0]]
+        tgt_hdg = (self.me['attitude/psi-rad'] + self.cmd_hdg[action[1]]) % (2 * np.pi)
+        tgt_spd = self.me['velocities/u-fps'] * 0.3048 + self.cmd_spd[action[2]]
+        cmd = decode_bins(self.lowlevel.bins(self.me, tgt_alt, tgt_hdg, tgt_spd))
         if self.foe_policy is None:
             los = self.me.pos() - self.foe.pos()
             exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
