@@ -29,4 +29,4 @@ class Posture(BaseReward):
         ao, ta, range_m = ao_ta_range(env.me.pos(), env.me.vel(), env.foe.pos(), env.foe.vel())
         near = range_window(env, range_m)
         far = float(np.clip(np.exp(-0.16 * range_m / 1000.0), 0.0, 1.0))
-        return self._orientation(ao, ta) * range_window(env, range_m)
+        return self._orientation(ao, ta) * (near + env.k_far * far)
