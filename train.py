@@ -68,7 +68,7 @@ if __name__ == "__main__":
     env.norm_reward = False                     #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
 
     #tensorboard --logdir=./tb_logs/
-    model = PPO.load(model_load, env=env, ent_coef = 0.002, verbose = 1, tensorboard_log="./tb_logs/")
+    model = PPO.load(model_load, env=env, ent_coef = 1e-3, verbose = 1, tensorboard_log="./tb_logs/")
     #model = PPO("MlpPolicy", env, verbose = 1, n_steps=512, batch_size=1024, gamma = 0.997, ent_coef = 1e-3, tensorboard_log="./tb_logs/") #ent_coef controls how much PPO encourage exploration 
 
     pool = SelfPlayPool(every=snapshot_every, prefix="v4.0.6", warmup=snapshot_warm, prob=pool_prob)
