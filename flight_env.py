@@ -443,17 +443,20 @@ class F16Env(gym.Env):
 
     def decode(self, action):
         return decode_bins(action)
+
+    def _fly(self, ac, action):
+        #policy commands a change
+        tgt_alt = ac['position/h-sl-meters'] + self.cmd_alt[action[0]]
+        tgt_hdg = (ac['attitude/psi-rad'] + self.cmd_hdg[action[1]]) % (2 * np.pi)
+        tgt_spd = ac['velocities/u-fps'] * 0.3048 + self.cmd_spd[action[2]]
+        return decode_bins(self.lowlevel.bins(ac, tgt_alt, tgt_hdg, tgt_spd))
     
     def step(self, action):
         action = np.asarray(action).copy()
         if self.mirror:
             action[1] = (len(self.cmd_hdg) - 1) - action[1]   #left/right flip only
 
-        #policy commands a change
-        tgt_alt = self.me['position/h-sl-meters'] + self.cmd_alt[action[0]]
-        tgt_hdg = (self.me['attitude/psi-rad'] + self.cmd_hdg[action[1]]) % (2 * np.pi)
-        tgt_spd = self.me['velocities/u-fps'] * 0.3048 + self.cmd_spd[action[2]]
-        cmd = decode_bins(self.lowlevel.bins(self.me, tgt_alt, tgt_hdg, tgt_spd))
+        cmd = self._fly(self.me, action)
         if self.foe_policy is None:
             los = self.me.pos() - self.foe.pos()
             exp_heading = np.arctan2(los[1], los[0]) + self.turn_offset
@@ -462,7 +465,9 @@ class F16Env(gym.Env):
             model, rms, clip, eps = self.foe_policy #rms = runningmeanstd
             nobs = np.clip((self.foe_obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
             foe_action, _ = model.predict(nobs.astype(np.float32), deterministic=True)
-            if np.issubdtype(foe_action.dtype, np.integer):
+            if len(foe_action) == 3:
+                foe_action = self._fly(self.foe, foe_action)
+            elif np.issubdtype(foe_action.dtype, np.integer):
                 foe_action = self.decode(foe_action)
 
         self.foe.ctrl_input(foe_action)
