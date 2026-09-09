@@ -21,6 +21,6 @@ if __name__ == "__main__":
     #model = PPO("MlpPolicy", env, verbose=1, n_steps=512, batch_size=1024, gamma=0.997, ent_coef=0.03, tensorboard_log="./tb_logs/")
     model = PPO.load(model_load, env=env, ent_coef=1e-3, verbose=1, tensorboard_log="./tb_logs/")
     
-    model.learn(total_timesteps=2_000_000,reset_num_timesteps=False, tb_log_name="def_v3.0.0") #reset_num_timesteps=False,
+    model.learn(total_timesteps=3_000_000,reset_num_timesteps=False, tb_log_name="def_v1.0.0") #reset_num_timesteps=False,
     model.save(model_path)
     env.save(vecnorm_path)
