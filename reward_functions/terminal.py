@@ -7,6 +7,7 @@ class Terminal(BaseReward):
         if computed.deck_hit: r -= env.k_crash
         if computed.crashed:  r -= env.k_crash
         if computed.foe_down: r += env.k_crash
+        if computed.foe_deck_hit: r += env.k_crash
         if env.foe_hp - computed.dmg_foe <= 0.0: r += env.k_win
         if env.agent_hp - computed.dmg_me <= 0.0: r -= env.k_win
         return r

@@ -342,7 +342,7 @@ class F16Env(gym.Env):
                          self.me['accelerations/Nz'],
                          self.me['position/h-agl-ft'] * 0.3048,
                          False, False, False, 0.0, 0.0,
-                         self.foe.boresight_to(self.me.pos()), False)
+                         self.foe.boresight_to(self.me.pos()), False, False)
         for fn in self.reward_functions:
             fn.reset(self, spawn)
 
@@ -515,7 +515,7 @@ class F16Env(gym.Env):
         computed = StepComp(speed_knots, curr_g, alt_agl_m,
                             crashed, deck_hit, truncated,
                             dmg_foe, dmg_me,
-                            self.foe.boresight_to(self.me.pos()), foe_down)
+                            self.foe.boresight_to(self.me.pos()), foe_down, foe_deck_hit)
         reward = self._reward(computed)
 
         self.foe_hp   -= dmg_foe
