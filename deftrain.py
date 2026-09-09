@@ -5,10 +5,10 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
 
-model_load   = "ppo_f16_def_v1.0.0.zip"     
-model_path   = "ppo_f16_def_v1.0.1.zip"   
-vecnorm_load = "vecnorm_def_v1.0.0.pkl"
-vecnorm_path = "vecnorm_def_v1.0.1.pkl"
+model_load   = "ppo_f16_def_v1.0.1.zip"     
+model_path   = "ppo_f16_def_v1.0.2.zip"   
+vecnorm_load = "vecnorm_def_v1.0.1.pkl"
+vecnorm_path = "vecnorm_def_v1.0.2.pkl"
 
 if __name__ == "__main__":
     check_env(make_def_env().env)

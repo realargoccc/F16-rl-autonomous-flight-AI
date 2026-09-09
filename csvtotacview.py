@@ -3,7 +3,7 @@ import math
 import sys
 
 #python csvtotacview.py                                      # offence command terminal
-#python csvtotacview.py def_best.csv f16_def_v1.0.0.acmi     # defence command terminal
+#python csvtotacview.py def_best.csv f16_def_v1.0.2.acmi     # defence command terminal
 
 csv_path = sys.argv[1] if len(sys.argv) > 1 else "eval_best.csv"
 acmi_path = sys.argv[2] if len(sys.argv) > 2 else "f16_intercept_v4.1.5.acmi"
