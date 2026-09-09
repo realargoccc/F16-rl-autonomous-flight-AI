@@ -5,13 +5,10 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
 
-model_load   = "ppo_f16_eleva_v3.0.0.zip"     
-model_path   = "ppo_f16_eleva_v3.0.1.zip"   
-vecnorm_load = "vecnorm_eleva_v3.0.0.pkl"
-vecnorm_path = "vecnorm_eleva_v3.0.1.pkl"
-
-def make_env():
-    return Monitor(make_def_env(), info_keywords=("crashed", "foe_crashed", "win", "deck_hit"))
+model_load   = "ppo_f16_eleva_v4.1.5.zip"     
+model_path   = "ppo_f16_def_v1.0.0.zip"   
+vecnorm_load = "vecnorm_eleva_v4.1.5.pkl"
+vecnorm_path = "vecnorm_def_v1.0.0.pkl"
 
 if __name__ == "__main__":
     check_env(F16DefEnv())
