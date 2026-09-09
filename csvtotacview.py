@@ -2,8 +2,11 @@ import csv
 import math
 import sys
 
-csv_path = "eval_best.csv"
-acmi_path = "f16_intercept_v4.1.5.acmi"
+#python csvtotacview.py                                      # offence command terminal
+#python csvtotacview.py def_best.csv f16_def_v1.0.0.acmi     # defence command terminal
+
+csv_path = sys.argv[1] if len(sys.argv) > 1 else "eval_best.csv"
+acmi_path = sys.argv[1] if len(sys.argv) > 2 else "f16_intercept_v4.1.5.acmi"
 
 #nellis afb lat and lon (fight location)
 ref_lat = 36.20
@@ -78,3 +81,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

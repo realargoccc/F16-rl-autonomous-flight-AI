@@ -135,7 +135,7 @@ def get_episode(model, vecnorm, raw, seed=None):
 
 def episode_key(epi):
     #priority rank: win, length of wez, and boresight
-    return (int(epi["lose"]),
+    return (int(not epi["lose"]),
             epi["agent_hp"],
             epi["length"])
 
@@ -196,7 +196,7 @@ with open ("def_best.csv", "w", newline="") as f:     #open the csv
     for row in best["rows"]:        #Option B: I prefer B as it is detailed 
         writer.writerow(row)
 
-losses = [e for e in episodes if not e["lose"]]
+losses = [e for e in episodes if e["lose"]]
 if losses:
     worst = max(losses, key=failure_key)
     with open("def_worst.csv", "w", newline="") as f:
