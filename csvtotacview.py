@@ -1,5 +1,6 @@
 import csv
 import math
+import sys
 
 csv_path = "eval_best.csv"
 acmi_path = "f16_intercept_v4.1.5.acmi"

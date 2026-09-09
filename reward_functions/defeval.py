@@ -135,12 +135,12 @@ def get_episode(model, vecnorm, raw, seed=None):
 
 def episode_key(epi):
     #priority rank: win, length of wez, and boresight
-    return (int(epi["win"]),
-            epi["dwell"],
-            -epi["mean_abs_bs"])
+    return (int(epi["lose"]),
+            epi["agent_hp"],
+            epi["length"])
 
 def failure_key(epi):
-    return (-epi["foe_hp"], epi["dwell"])
+    return (epi["length"], epi["agent_hp"])
 
 def seed_sweep(model, vecnorm, raw, num_episodes=50):
     wins = 0        #total kills
@@ -189,17 +189,17 @@ episodes = seed_sweep(model, vecnorm, raw, num_episodes=50)
 best = max(episodes, key=episode_key)
 
 field_names = list(best["rows"][0].keys())
-with open ("eval_best.csv", "w", newline="") as f:     #open the csv 
+with open ("def_best.csv", "w", newline="") as f:     #open the csv 
     writer = csv.DictWriter(f, fieldnames=field_names)
     writer.writeheader()
     #writer.writerows(peak_episode["rows"]) Option A:
     for row in best["rows"]:        #Option B: I prefer B as it is detailed 
         writer.writerow(row)
 
-losses = [e for e in episodes if not e["win"]]
+losses = [e for e in episodes if not e["lose"]]
 if losses:
     worst = max(losses, key=failure_key)
-    with open("eval_worst.csv", "w", newline="") as f:
+    with open("def_worst.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=field_names)
         writer.writeheader()
         for row in worst["rows"]:
