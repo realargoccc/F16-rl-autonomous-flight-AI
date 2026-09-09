@@ -11,11 +11,12 @@ FOE_POOL = ["v4.1.5"]
 ASPECT_BAND = (60.0, 90.0)
 RANGE_BAND = (2500.0, 4000.0)
 
-def make_def_env(attacker=FOE_POOL, aspect_band=ASPECT_BAND, range_band=RANGE_BAND):
+def make_def_env(attackers=FOE_POOL, aspect_band=ASPECT_BAND, range_band=RANGE_BAND):
     env = F16Env()
     env.defensive_p = 1.0
     env.foe_pool_prob = 1.0
     env.aspect_band = aspect_band
     env.range_band = range_band
-    env.load_foe(attacker)
+    for tag in attackers:
+        env.load_foe(tag)
     return Monitor(env, info_keywords = ("crashed", "foe_crashed", "win", "deck_hit", "foe_down"))
