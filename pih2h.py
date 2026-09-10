@@ -6,8 +6,8 @@ RANGE_BAND = (2500.0, 4000.0)
 
 def make_h2h_env(pool=(), aspect_band = ASPECT_BAND, range_band = RANGE_BAND):
     env = F16Env()
-    env.aspect_band = ASPECT_BAND
-    env.range_band = RANGE_BAND
+    env.aspect_band = aspect_band
+    env.range_band = range_band
     env.defensive_p = 0.0
     env.selfplay = "pfsp"
     for tag in pool:

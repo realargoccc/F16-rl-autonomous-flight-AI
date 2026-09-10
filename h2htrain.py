@@ -1,7 +1,7 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
-from h2h import make_h2h_env
+from pih2h import make_h2h_env
 from train import SelfPlayPool
 
 model_load = "ppo_f16_eleva_v4.1.6.zip"
