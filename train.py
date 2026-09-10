@@ -8,10 +8,10 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, SubprocV
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
-model_load = "ppo_f16_eleva_v4.1.4.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-model_path = "ppo_f16_eleva_v4.1.5.zip" 
-vecnorm_load = "vecnorm_eleva_v4.1.4.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
-vecnorm_path = "vecnorm_eleva_v4.1.5.pkl"
+model_load = "ppo_f16_eleva_v4.1.5.zip"         #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+model_path = "ppo_f16_eleva_v4.1.6.zip" 
+vecnorm_load = "vecnorm_eleva_v4.1.5.pkl"       #COMMEWNT OUT WHEN TRAIN FRESH, UN COMMENT WHEN TRAIN CONTINUOUS
+vecnorm_path = "vecnorm_eleva_v4.1.6.pkl"
 
 #selfplay 
 snapshot_every = 500_000
@@ -44,6 +44,8 @@ class SelfPlayPool(BaseCallback):
 def make_env():
     env = F16Env()
     env.aspect_band = (0.0, 80.0)
+    env.wide_band = (80.0, 180.0)
+    env.wide_prob = 0.25
     env.defensive_p = 0.3
     #foe_pool = ["v2.8.0", "v2.8.1", "v2.8.2", "v2.8.3", "v2.8.4", "v2.8.5", "v2.8.6", "v2.8.7", "v2.8.8"]
     #for vers in foe_pool:

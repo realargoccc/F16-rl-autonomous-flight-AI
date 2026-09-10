@@ -299,10 +299,11 @@ class F16Env(gym.Env):
 
         #foe spawn:
         self.setup = "offensive"
-        foe_range = float(self.np_random.uniform(*self.range_band))
+        wide = self.wide_band is not None and self.np_random.random() < self.wide_prob
+        foe_range = float(self.np_random.uniform(*(self.wide_range if wide else self.range_band)))
         aspect_sign = float(self.np_random.choice([-1.0, 1.0]))
-
-        self.spawn_aspect = aspect_sign * float(self.np_random.uniform(*self.aspect_band))
+        band = self.wide_band if wide else self.aspect_band
+        self.spawn_aspect = aspect_sign * float(self.np_random.uniform(*band))
         foe_heading = self.spawn_aspect % 360.0
         self.nominal_speed = 300.0
         if len(self.foe_pool) > 0 and self.np_random.random() < self.foe_pool_prob:
