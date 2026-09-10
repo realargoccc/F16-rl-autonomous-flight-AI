@@ -1,7 +1,7 @@
 from flight_env import F16Env
 from stable_baselines3.common.monitor import Monitor
 
-ASPECT_BAND = (150.0, 180.0)
+ASPECT_BAND = (150.0, 180.0) #merge only
 RANGE_BAND = (2500.0, 4000.0)
 
 def make_h2h_env(pool=(), aspect_band = ASPECT_BAND, range_band = RANGE_BAND):
