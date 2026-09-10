@@ -12,17 +12,18 @@ def load_policy(tag):
     return model, vn.obs_rms, float(vn.clip_obs), float(vn.epsilon)
 
 class Selector:
-    '''"frozen offense version: v4.1.5
+    '''frozen offense version: v4.1.5
         frozen defense version: v1.0.2
     '''
 
     RANGE, BORESIGHT, FOE_BS = 18, 23, 29   #obs location, to switch
 
-    def __init__(self, off_tag="eleva_4.1.5", def_tag="def_v1.0.2", threat_range=2500.0, margin=np.radians(20.0)):
+    def __init__(self, off_tag="eleva_v4.1.5", def_tag="def_v1.0.2", threat_range=2500.0, margin=np.radians(20.0)):
         self.off = load_policy(off_tag)
         self.dfn = load_policy(def_tag)
         self.threat_range = threat_range
         self.margin = margin
+        self.reset()
 
     def reset(self):
         self.mode = "offense"
@@ -38,7 +39,14 @@ class Selector:
             new_po = "offense"           #agent pointing at bandit 
         else:
             new_po = self.mode
-        if new_po != self.mode:
+        if new_po != self.mode:          #counting times of switches
             self.swithces += 1
             self.mode = new_po
         return self.mode
+
+    def predict(self, obs):
+        mode = self._pick(obs)
+        model, rms, clip, eps = self.off if mode == "offense" else self.dfn
+        n = np.clip((obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
+        a, _ = model.predict(n.astype(np.float32), deterministic=True)
+        return a, None
