@@ -40,7 +40,7 @@ class Selector:
         else:
             new_po = self.mode
         if new_po != self.mode:          #counting times of switches
-            self.swithces += 1
+            self.switches += 1
             self.mode = new_po
         return self.mode
 
