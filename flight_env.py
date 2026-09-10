@@ -171,6 +171,9 @@ class F16Env(gym.Env):
         self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
         self.range_band = (700.0, 1200.0)
         self.aspect_band = (0.0, 80.0)
+        self.wide_band = None
+        self.wide_range = (2500.0, 4000.0)
+        self.wide_prob = 0.0
         self.climb_deg = 15.0       #only effective when foe_policy is None (scripted bandit)
         self.dive_deg = 8.0         #same as above 
         self.bearing_spread = 40.0
