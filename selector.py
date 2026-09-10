@@ -19,4 +19,26 @@ class Selector:
     RANGE, BORESIGHT, FOE_BS = 18, 23, 29   #obs location, to switch
 
     def __init__(self, off_tag="eleva_4.1.5", def_tag="def_v1.0.2", threat_range=2500.0, margin=np.radians(20.0)):
-        
+        self.off = load_policy(off_tag)
+        self.dfn = load_policy(def_tag)
+        self.threat_range = threat_range
+        self.margin = margin
+
+    def reset(self):
+        self.mode = "offense"
+        self.switches = 0
+
+    def _pick(self, obs):
+        rng, own, bandit = obs[self.RANGE], obs[self.BORESIGHT], obs[self.FOE_BS]
+        if rng > self.threat_range:      #too far
+            new_po = "offense"
+        elif bandit < own - self.margin: #bandit pointing at agent
+            new_po = "defense"
+        elif own < bandit - self.margin:
+            new_po = "offense"           #agent pointing at bandit 
+        else:
+            new_po = self.mode
+        if new_po != self.mode:
+            self.swithces += 1
+            self.mode = new_po
+        return self.mode
