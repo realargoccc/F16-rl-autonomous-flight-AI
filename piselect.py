@@ -50,12 +50,19 @@ class SelectEnv(gym.Env):
 
     def add_opponent(self, selector, tag):
         '''put selector in foe pool'''
-        opp = copy.copy(selector)
+        self._register(copy.copy(selector), tag)
+
+    def add_learned_opponent(self, tag):
+        '''load a saved chooser inside the worker'''
+        self._register(LearnedSelector(tag, self.sel, self.defense_override), tag)
+        
+    def _register(self, opp, tag):
         opp.reset()
         self.env.foe_pool.append((opp, _Raw, np.inf, 0.0))
         self.env.foe_tags.append(tag)
         self.env.foe_wins.append(0.0)
         self.env.foe_games.append(0.0)
+        
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
