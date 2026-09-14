@@ -284,7 +284,7 @@ class F16Env(gym.Env):
         self.foe.set_origin(lat0, lon0)
 
         self.prev_heading = self.me['attitude/psi-rad']
-        self.turned = 0.0   #accumulator
+        self.turned = 0.0   #accumulator 
         #bool(self.np_random.random() < 0.5)
         self.mirror = False  
         #foe's tactic:
