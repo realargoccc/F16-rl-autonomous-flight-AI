@@ -18,6 +18,7 @@ class Selector:
     '''
 
     BORESIGHT, FOE_BS = 23, 29   #obs location, to switch
+    MODES = ("offense", "defense", "merge")
 
     def __init__(self, off_tag="eleva_v4.1.6", def_tag="def_v1.0.2", merge_tag="eleva_h2h_v1.0.1", min_dwell=10):
         self.experts = {"offense": load_policy(off_tag),
@@ -50,15 +51,11 @@ class Selector:
         return self.mode
 
     def act (self, mode, obs, deterministic=True):
-        '''fly with one expert at a time'''
+        '''fly with one expert at a time with the name provided'''
         model, rms, clip, eps = self.experts[mode]
         n = np.clip((obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
-        a, _ = model.predict(n.astype(np.float32), dterministic=deterministic)
+        a, _ = model.predict(n.astype(np.float32), deterministic=deterministic)
         return a
 
-    def predict(self, obs):
-        mode = self._pick(obs)
-        model, rms, clip, eps = self.off if mode == "offense" else self.dfn
-        n = np.clip((obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
-        a, _ = model.predict(n.astype(np.float32), deterministic=True)
-        return a, None
+    def predict(self, obs, deterministic=True):
+        return self.act(self._pick(obs), obs, deterministic), None
