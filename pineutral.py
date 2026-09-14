@@ -12,3 +12,4 @@ def make_neutral_env(aspect_band=ASPECT_BAND, range_band=RANGE_BAND):
     env.foe_pool_prob = 0.0
 
     return Monitor(env, info_keywords=("crashed", "foe_crashed", "win", "deck_hit", "foe_down"))
+
