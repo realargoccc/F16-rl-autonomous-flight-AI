@@ -27,9 +27,17 @@ class Selector:
         self.reset()
 
     def reset(self):
-        self.mode = "offense"
+        self.mode = None
+        self.held = 0
         self.switches = 0
 
+    def quadrant(self, obs):
+        half = np.pi / 2
+        agent, foe = obs[self.BORESIGHT], obs[self.FOE_BS]
+        if agent < half and foe > half: return "offense"
+        if agent > half and foe < half: return "defense"
+        return "merge"
+    
     def _pick(self, obs):
         rng, own, bandit = obs[self.RANGE], obs[self.BORESIGHT], obs[self.FOE_BS]
         if rng > self.threat_range:      #too far
