@@ -26,3 +26,12 @@ class SelectEnv(gym.Env):
         self.action_space = spaces.Discrete(len(Selector.MODES))
         self.observation_space = self.env.observation_space
         self.add_opponent(self.sel, "hand")     #hand turn 90 deg rule
+
+def add_opponent(self, selector, tag):
+    '''put selector in foe pool'''
+    opp = copy.copy(selector)
+    opp.reset()
+    self.env.foe_pool.append((opp, _Raw, np.inf, 0.0))
+    self.env.foe_tags.append(tag)
+    self.env.foe_wins.append(0.0)
+    self.env.foe_games.append(0.0)
