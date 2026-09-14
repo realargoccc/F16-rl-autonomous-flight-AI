@@ -17,6 +17,7 @@ class SelectEnv(gym.Env):
     def __init__(self, aspect_band=(150.0, 180.0), range_band=(2500.0, 3500.0), defensive_p=0.0, bandit_p=0.5,
                  defense_override=True):
         self.env = F16Env()
+        self.env.load_foe("v4.1.6")
         self.env.aspect_band = aspect_band
         self.env.range_band = range_band             
         self.env.defensive_p = defensive_p   
@@ -39,8 +40,9 @@ class SelectEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.obs, info = self.env.reset(seed=seed)
-        if self.env.foe_policy is not None:
-            self.env.foe_policy[0].reset()
+        opp = self.env.foe_policy
+        if opp is not None and hasattr(opp[0], "reset"):
+            opp[0].reset()
         return self.obs, info
 
     def step(self, action):
@@ -55,5 +57,5 @@ class SelectEnv(gym.Env):
                 break
         return self.obs, total, terminated, truncated, info
 
-    def make_select_env(**kwargs):
-        return Monitor(SelectEnv(**kwargs), info_keywords=("crashed", "foe_crashed", "win", "deck_hit", "foe_down"))
+def make_select_env(**kwargs):
+    return Monitor(SelectEnv(**kwargs), info_keywords=("crashed", "foe_crashed", "win", "deck_hit", "foe_down"))
