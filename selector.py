@@ -49,6 +49,13 @@ class Selector:
         self.held += 1
         return self.mode
 
+    def act (self, mode, obs, deterministic=True):
+        '''fly with one expert at a time'''
+        model, rms, clip, eps = self.experts[mode]
+        n = np.clip((obs - rms.mean) / np.sqrt(rms.var + eps), -clip, clip)
+        a, _ = model.predict(n.astype(np.float32), dterministic=deterministic)
+        return a
+
     def predict(self, obs):
         mode = self._pick(obs)
         model, rms, clip, eps = self.off if mode == "offense" else self.dfn
