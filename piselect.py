@@ -14,7 +14,7 @@ class _Raw:
     mean, var = 0.0, 1.0
 
 class SelectEnv(gym.Env):
-    def __init__(self, aspect_band=(150.0, 180.0), range_band=(2500.0, 3500.0), defensive_p=0.3, bandit_p=0.5,
+    def __init__(self, aspect_band=(150.0, 180.0), range_band=(2500.0, 3500.0), defensive_p=0.0, bandit_p=0.5,
                  defense_override=True):
         self.env = F16Env()
         self.env.aspect_band = aspect_band
@@ -27,11 +27,33 @@ class SelectEnv(gym.Env):
         self.observation_space = self.env.observation_space
         self.add_opponent(self.sel, "hand")     #hand turn 90 deg rule
 
-def add_opponent(self, selector, tag):
-    '''put selector in foe pool'''
-    opp = copy.copy(selector)
-    opp.reset()
-    self.env.foe_pool.append((opp, _Raw, np.inf, 0.0))
-    self.env.foe_tags.append(tag)
-    self.env.foe_wins.append(0.0)
-    self.env.foe_games.append(0.0)
+    def add_opponent(self, selector, tag):
+        '''put selector in foe pool'''
+        opp = copy.copy(selector)
+        opp.reset()
+        self.env.foe_pool.append((opp, _Raw, np.inf, 0.0))
+        self.env.foe_tags.append(tag)
+        self.env.foe_wins.append(0.0)
+        self.env.foe_games.append(0.0)
+
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        self.obs, info = self.env.reset(seed=seed)
+        if self.env.foe_policy is not None:
+            self.env.foe_policy[0].reset()
+        return self.obs, info
+
+    def step(self, action):
+        mode = Selector.MODES[int(action)]
+        total = 0.0
+        for _ in range(DECISION_STEPS):
+            defending = self.defense_override and self.sel.quadrant(self.obs) == "defense"
+            flown = "defense" if defending else mode
+            self.obs, r, terminated, truncated, info = self.env.step(self.sel.act(flown, self.obs))
+            total += float(r)
+            if terminated or truncated:
+                break
+        return self.obs, total, terminated, truncated, info
+
+    def make_select_env(**kwargs):
+        return Monitor(SelectEnv(**kwargs), info_keywords=("crashed", "foe_crashed", "win", "deck_hit", "foe_down"))
