@@ -12,17 +12,18 @@ def load_policy(tag):
     return model, vn.obs_rms, float(vn.clip_obs), float(vn.epsilon)
 
 class Selector:
-    '''frozen offense version: v4.1.5
+    '''frozen offense version: v4.1.56
         frozen defense version: v1.0.2
+        frozen merge version: v1.0.1
     '''
 
-    RANGE, BORESIGHT, FOE_BS = 18, 23, 29   #obs location, to switch
+    BORESIGHT, FOE_BS = 23, 29   #obs location, to switch
 
-    def __init__(self, off_tag="eleva_v4.1.5", def_tag="def_v1.0.2", threat_range=2500.0, margin=np.radians(20.0)):
-        self.off = load_policy(off_tag)
-        self.dfn = load_policy(def_tag)
-        self.threat_range = threat_range
-        self.margin = margin
+    def __init__(self, off_tag="eleva_v4.1.6", def_tag="def_v1.0.2", merge_tag="eleva_h2h_v1.0.1", min_dwell=10):
+        self.experts = {"offense": load_policy(off_tag),
+                        "defense": load_policy(def_tag),
+                        "merge": load_policy(merge_tag)}
+        self.min_dwell = min_dwell  #decide every 1s
         self.reset()
 
     def reset(self):
