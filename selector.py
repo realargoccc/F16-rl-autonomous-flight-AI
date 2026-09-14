@@ -38,19 +38,15 @@ class Selector:
         if agent > half and foe < half: return "defense"
         return "merge"
     
-    def _pick(self, obs):
-        rng, own, bandit = obs[self.RANGE], obs[self.BORESIGHT], obs[self.FOE_BS]
-        if rng > self.threat_range:      #too far
-            new_po = "offense"
-        elif bandit < own - self.margin: #bandit pointing at agent
-            new_po = "defense"
-        elif own < bandit - self.margin:
-            new_po = "offense"           #agent pointing at bandit 
-        else:
-            new_po = self.mode
-        if new_po != self.mode:          #counting times of switches
+    def _pick(self, obs):      
+        choice = self.quadrant(obs)
+        if self.mode is None:      #first decision
+            self.mode = choice
+        elif choice != self.mode and (choice == "defense" or self.held >= self.min_dwell):
+            self.mode = choice
+            self.held = 0
             self.switches += 1
-            self.mode = new_po
+        self.held += 1
         return self.mode
 
     def predict(self, obs):
