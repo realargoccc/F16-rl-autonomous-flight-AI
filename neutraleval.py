@@ -23,3 +23,27 @@ vecnorm.training = False
 vecnorm.norm_reward = False
 raw = make_neutral_env().env
 
+wins = crashes = earned = given = 0
+best = None
+for seed in SEEDS:
+    obs, _ = raw.reset(seed=seed)
+    quads, rows = [], []
+    terminated = truncated = False
+    while not (terminated or truncated):
+        action, _ = model.predict(vecnorm.normalize_obs(obs), deterministic=True)
+        obs, reward, terminated, truncated, info = raw.step(action)
+        quads.append(quadrant(obs[23], obs[29]))
+        me, foe = raw.me.pos(), raw.foe.pos()
+        rows.append({                       #only what csvtotacview reads
+            "time": raw.me.get_sim_time(),
+            "bank_rad": raw.me['attitude/phi-rad'],
+            "pitch_rad": raw.me['attitude/theta-deg'],   #degrees, csvtotacview passes it through
+            "heading_deg": raw.me['attitude/psi-deg'],
+            "agent_n_m": float(me[0]), "agent_e_m": float(me[1]), "agent_up_m": float(me[2]),
+            "foe_n_m": float(foe[0]), "foe_e_m": float(foe[1]), "foe_up_m": float(foe[2]),
+            "foe_roll_deg": raw.foe['attitude/phi-deg'],
+            "foe_pitch_deg": raw.foe['attitude/theta-deg'],
+            "foe_yaw_deg": raw.foe['attitude/psi-deg'],
+        })
+
+        
