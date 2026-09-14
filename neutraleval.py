@@ -45,5 +45,29 @@ for seed in SEEDS:
             "foe_pitch_deg": raw.foe['attitude/theta-deg'],
             "foe_yaw_deg": raw.foe['attitude/psi-deg'],
         })
+    win = raw.foe_hp <= 0.0
+    wins += int(win)
+    crashes += int(info["crashed"] or info["deck_hit"])
+    ep_earned = 0
+    for i in range(1, len(quads) - 10):
+        if quads[i] == "OFF" and quads[i-1] != "OFF" and all(q == "OFF" for q in quads[i:i+10]):
+            ep_earned += int(quads[i-1] == "SEP") #turned to bandit
+            given += int(quads[i-1] == "MUT")     #bandit turned away
+    earned += ep_earned
 
-        
+    key = (ep_earned, int(win))
+    if best is None or key > best[0]:
+        best = (key, seed, rows)
+
+n = len(SEEDS)
+print(f"                  v4.1.6   {TAG}")
+print(f"wins /60        {BASELINE['wins']:>8d}   {wins:>8d}")
+print(f"earned / ep     {BASELINE['earned_per_ep']:>8.2f}   {earned / n:>8.2f}")
+print(f"earned share    {BASELINE['earned_share']:>8.0%}   {earned / max(earned + given, 1):>8.0%}")
+print(f"crashes         {BASELINE['crashes']:>8d}   {crashes:>8d}")
+
+with open("neutral_best.csv", "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=list(best[2][0].keys()))
+    writer.writeheader()
+    writer.writerows(best[2])
+print(f"\nwrote neutral_best.csv  seed {best[1]}  earned {best[0][0]}  win {bool(best[0][1])}")
