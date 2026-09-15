@@ -70,3 +70,12 @@ if __name__ == "__main__":
         print("learned vs", opponent, summarize(learned))
         best = max(learned, key=lambda e: (e["win"], e["dealt"], -e["length"]))   #priority: kill, damage, shorter
         path = "select_best_" + opponent.replace(".", "") + ".csv"
+
+        with open(path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=best["rows"][0].keys())
+            writer.writeheader()
+            writer.writerows(best["rows"])
+        print("wrote", path, "seed", best["seed"], best["end"])
+
+#python csvtotacview.py select_best_bandit.csv f16_select_v1.0.0_bandit.acmi
+#python csvtotacview.py select_best_v416.csv f16_select_v1.0.0_v416.acmi

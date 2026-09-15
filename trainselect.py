@@ -4,7 +4,9 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
-TAG = "select_v1.0.0"
+model_load = "ppo_f16_select_v1.0.0.zip"
+vecnorm_load = "vecnorm_select_v1.0.0.pkl"
+TAG = "select_v1.0.1"
 model_path = "ppo_f16_" + TAG + ".zip"
 vecnorm_path = "vecnorm_" + TAG + ".pkl"
 
@@ -36,10 +38,14 @@ class SnapshotPool(BaseCallback):
 
 if __name__ == "__main__":
     env = SubprocVecEnv([make_select_env for _ in range(8)])
-    env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+    #env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+    env = VecNormalize.load(vecnorm_load, env)
+    env.training = True
+    env.norm_reward = False
 
-    model = PPO("MlpPolicy", env, gamma=0.97, n_steps=256, batch_size=512, ent_coef=0.01, verbose=1, tensorboard_log="./tb_logs/")
+    model = PPO.load(model_load, env=env, verbose=1, tensorboard_log="./tb_logs/")
+    #model = PPO("MlpPolicy", env, gamma=0.97, n_steps=256, batch_size=512, ent_coef=0.01, verbose=1, tensorboard_log="./tb_logs/")
     pool = SnapshotPool(every=snapshot, prefix=TAG)
-    model.learn(total_timesteps=total_decisions, callback=pool, tb_log_name=TAG)
+    model.learn(total_timesteps=total_decisions, reset_num_timesteps=False, callback=pool, tb_log_name=TAG)
     model.save(model_path)
     env.save(vecnorm_path)
