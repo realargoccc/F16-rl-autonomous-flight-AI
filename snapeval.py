@@ -5,8 +5,8 @@ from pisnap import SnapEnv
 from selector import load_policy
 
 #python csvtotacview.py snap_best.csv f16_snap_v1.0.0.acmi
-TAG = "snap_v1.0.0"
-BASELINE = "eleva_v4.1.6"         
+TAG = "snap_v1.0.1"
+BASELINE = "snap_v1.0.0"         
 OPPONENT = "pursuit"               #"pursuit" or "v4.1.6"
 SEEDS = range(80000, 80060)        
 
