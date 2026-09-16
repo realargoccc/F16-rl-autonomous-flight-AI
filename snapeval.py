@@ -50,4 +50,26 @@ def sweep(tag):
                        "dealt": foe_hp - f16.foe_hp, "taken": own_hp - f16.agent_hp, "rows": rows})
         return passes
     
-def summarize
+def summarize(passes):
+    get_stats = lambda k: [p[k] for p in passes]
+    ends = get_stats("end")
+    return {"on target": np.mean(get_stats("on_target")),
+            "dealt":     np.mean(get_stats("dealt")),
+            "taken":     np.mean(get_stats("taken")),
+            "kills":     ends.count("kill"),
+            "lost":      ends.count("shot down") + ends.count("own over-g/deck"),
+            "closest m": np.median(get_stats("closest"))}
+
+if __name__ == "__main__":
+    base, snap = sweep(BASELINE), sweep(TAG)
+    sb, ss = summarize(base), summarize(snap)
+    print(f"{OPPONENT}, {len(SEEDS)} passes {BASELINE:>13}{TAG:>13}")
+    for k in sb:
+        print(f"{k:12}{sb[k]:>13.3g}{ss[k]:>13.3g}")
+
+    best = max(snap, key=lambda p: (p["dealt"], p["on_target"]))
+    with open("snap_best.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=best["rows"][0].keys())
+        w.writeheader()
+        w.writerows(best["rows"])
+    print("wrote snap_best.csv  seed", best["seed"], best["end"])
