@@ -1,4 +1,5 @@
 import gymnasium as gym
+import numpy as np
 from stable_baselines3.common.monitor import Monitor
 
 from flight_env import F16Env
@@ -31,6 +32,9 @@ class SnapEnv(gym.Env):
         return obs, info
 
     def step(self, action):
+        if self.opponent == "pursuit":
+            los = self.env.me.pos() - self.env.foe.pos()
+            self.env.pitch_target = float(np.arctan2(los[2], np.hypot(los[0], los[1])))
         hp_before = self.env.agent_hp
         obs, reward, terminated, truncated, info = self.env.step(action)
         taken = hp_before - self.env.agent_hp
