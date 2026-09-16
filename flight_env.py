@@ -177,6 +177,7 @@ class F16Env(gym.Env):
         self.climb_deg = 15.0       #only effective when foe_policy is None (scripted bandit)
         self.dive_deg = 8.0         #same as above 
         self.bearing_spread = 40.0
+        self.rel_alt_band = None
         self.defensive_p = 0.0
 
         #reward weights - knobs
@@ -314,8 +315,11 @@ class F16Env(gym.Env):
             self.foe_policy = None
 
         #Foe spawn configs
-        foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)])
-        foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
+        if self.rel_alt_band is None:
+            foe_spawn_low, foe_spawn_high = self.np_random.choice([(-500.0, -250.0), (250.0, 500.0)])
+            foe_rel_alt = self.np_random.uniform(foe_spawn_low, foe_spawn_high)
+        else:
+            foe_rel_alt = float(self.np_random.uniform(*self.rel_alt_band))
         #shuffle defense and offense spawn
         r = self.np_random.random()
         side = -1.0 if (self.foe_policy is not None and r < self.defensive_p) else 1.0
