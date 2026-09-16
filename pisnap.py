@@ -5,11 +5,12 @@ from flight_env import F16Env
 
 class SnapEnv(gym.Env):
     def __init__(self, aspect_band = (175.0, 180.0), range_band = (2500.0, 4000.0), bearing_spread=5.0, opponent="pursuit", max_steps=300
-                 ,taken_weight=None):
+                 ,taken_weight=None, rel_alt_band=(0.0, 0.0)):
         self.env = F16Env()
         self.env.aspect_band = aspect_band          
         self.env.range_band = range_band
-        self.env.bearing_spread = bearing_spread   
+        self.env.bearing_spread = bearing_spread 
+        self.env.rel_alt_band = rel_alt_band  
         self.env.defensive_p = 0.0
         self.env.max_episodes_steps = max_steps
         self.opponent = opponent
