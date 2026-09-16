@@ -78,4 +78,4 @@ if __name__ == "__main__":
         print("wrote", path, "seed", best["seed"], best["end"])
 
 #python csvtotacview.py select_best_bandit.csv f16_select_v1.0.0_bandit.acmi
-#python csvtotacview.py select_best_v416.csv f16_select_v1.0.0_v416.acmi
+#python csvtotacview.py select_best_v416.csv f16_select_v1.0.1_v416.acmi
