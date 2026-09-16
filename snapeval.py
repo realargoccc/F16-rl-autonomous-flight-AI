@@ -4,7 +4,7 @@ import numpy as np
 from pisnap import SnapEnv
 from selector import load_policy
 
-#python csvtotacview.py snap_best.csv f16_snap_v1.0.0.acmi
+#python csvtotacview.py snap_best.csv f16_snap_v1.0.1.acmi
 TAG = "snap_v1.0.1"
 BASELINE = "snap_v1.0.0"         
 OPPONENT = "pursuit"               #"pursuit" or "v4.1.6"
@@ -49,7 +49,7 @@ def sweep(tag):
         else:                              end = "no pass"
         passes.append({"seed": seed, "end": end, "on_target": on_target, "closest": closest,
                        "dealt": foe_hp - f16.foe_hp, "taken": own_hp - f16.agent_hp, "rows": rows})
-        return passes
+    return passes
     
 def summarize(passes):
     get_stats = lambda k: [p[k] for p in passes]

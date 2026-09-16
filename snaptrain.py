@@ -3,9 +3,9 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from pisnap import make_snap_env
 
-model_load = "ppo_f16_snap_v1.0.0.zip"      
-vecnorm_load = "vecnorm_snap_v1.0.0.pkl"    
-TAG = "snap_v1.0.1"
+model_load = "ppo_f16_snap_v1.0.1.zip"      
+vecnorm_load = "vecnorm_snap_v1.0.1.pkl"    
+TAG = "snap_v1.0.2"
 model_path = "ppo_f16_" + TAG + ".zip"
 vecnorm_path = "vecnorm_" + TAG + ".pkl"
 
