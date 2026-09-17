@@ -4,7 +4,7 @@ import numpy as np
 from pisnap import SnapEnv
 from selector import load_policy
 
-#python csvtotacview.py snap_best.csv f16_snap_v1.1.0.acmi
+#python csvtotacview.py snap_best.csv f16_snap_v1.1.1.acmi
 TAG = "snap_v1.1.1"
 BASELINE = "snap_v1.1.0"         
 OPPONENT = "pursuit"               #"pursuit" or "v4.1.6"
