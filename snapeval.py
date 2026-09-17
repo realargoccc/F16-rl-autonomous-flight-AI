@@ -53,33 +53,31 @@ def sweep(tag):
         elif info["pass_done"]:            end = "pass"
         else:                              end = "no pass"
         passes.append({"seed": seed, "end": end, "on_target": on_target, "closest": closest,
-                       "dealt": foe_hp - f16.foe_hp, "taken": own_hp - f16.agent_hp, "rows": rows
+                       "dealt": foe_hp - f16.foe_hp, "taken": own_hp - f16.agent_hp, "rows": rows,
                        "nose900": nose900})
     return passes
     
 def summarize(passes):
     get_stats = lambda k: [p[k] for p in passes]
-    ends = get_stats("end")
-    return {"passes":     len(passes),
-            "hit passes": sum(n > 0 for n in get_stats("on_target")),
-            "on target":  np.mean(get_stats("on_target")),
-            "dealt":      np.mean(get_stats("dealt")),
-            "taken":      np.mean(get_stats("taken")),
-            "nose@900":   np.nanmean(get_stats("nose900")),
-            "kills":      ends.count("kill"),
-            "lost":       ends.count("shot down") + ends.count("own over-g/deck"),
-            "closest m":  np.median(get_stats("closest"))}
+    return {"hit passes": sum(n > 0 for n in get_stats("on_target")),
+            "dealt":      round(np.mean(get_stats("dealt")), 3),
+            "taken":      round(np.mean(get_stats("taken")), 3),
+            "nose@900":   round(np.nanmean(get_stats("nose900")), 1)}
 
 if __name__ == "__main__":
     base, snap = sweep(BASELINE), sweep(TAG)
-    sb, ss = summarize(base), summarize(snap)
-    print(f"{OPPONENT}, {len(SEEDS)} passes {BASELINE:>13}{TAG:>13}")
-    for k in sb:
-        print(f"{k:12}{sb[k]:>13.3g}{ss[k]:>13.3g}")
+    print(f"{OPPONENT:20}{BASELINE:>{W}}{TAG:>{W}}")
+    for name, keep in (("|offset| < 250 m", lambda p: abs(p["offset"]) < 250.0),
+                       ("|offset| >= 250 m", lambda p: abs(p["offset"]) >= 250.0)):
+        sb = summarize([p for p in base if keep(p)])
+        ss = summarize([p for p in snap if keep(p)])
+        print(name)
+        for k in sb:
+            print(f"  {k:18}{sb[k]:>{W}}{ss[k]:>{W}}")
 
     best = max(snap, key=lambda p: (p["dealt"], p["on_target"]))
     with open("snap_best.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=best["rows"][0].keys())
         w.writeheader()
         w.writerows(best["rows"])
-    print("wrote snap_best.csv  seed", best["seed"], best["end"])
+    print(f"wrote snap_best.csv  seed {best['seed']}  offset {best['offset']:.0f} m")
