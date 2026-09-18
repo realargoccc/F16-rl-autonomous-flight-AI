@@ -65,11 +65,12 @@ def summarize(episodes):    #print all 60 seeds in one column
 
 if __name__ == "__main__":
     for opponent in ("bandit", "v4.1.6"):
-        print("hand    vs", opponent, summarize(sweep("hand", opponent)))
-        learned = sweep("learned", opponent)
-        print("learned vs", opponent, summarize(learned))
-        best = max(learned, key=lambda e: (e["win"], e["dealt"], -e["length"]))   #priority: kill, damage, shorter
-        path = "select_best_" + opponent.replace(".", "") + ".csv"
+        print("old    vs", opponent, summarize(sweep(10, opponent)))
+        commit = sweep("learned", opponent)
+        print("commit vs", opponent, summarize(commit))
+        best = max(commit, key=lambda e: (e["win"], e["end"] not in ("shot down", "own over-g", "own deck"),
+                                           e["dealt"], -e["length"]))   #priority: kill, damage, shorter
+        path = "select_best_commit" + opponent.replace(".", "") + ".csv"
 
         with open(path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=best["rows"][0].keys())
@@ -77,5 +78,5 @@ if __name__ == "__main__":
             writer.writerows(best["rows"])
         print("wrote", path, "seed", best["seed"], best["end"])
 
-#python csvtotacview.py select_best_bandit.csv f16_select_v1.0.0_bandit.acmi
-#python csvtotacview.py select_best_v416.csv f16_select_v1.0.1_v416.acmi
+#python csvtotacview.py select_best_commit_bandit.csv f16_select_commit_bandit.acmi
+#python csvtotacview.py select_best_commit_v416.csv f16_select_commit_v416.acmi

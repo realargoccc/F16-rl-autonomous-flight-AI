@@ -20,10 +20,10 @@ class Selector:
 
     BORESIGHT, FOE_BS = 23, 29   #obs location, to switch
     RANGE, CLOSURE = 18, 21
-    MODES = ("offense", "defense", "merge", "snap")
+    MODES = ("offense", "defense", "merge")
 
     def __init__(self, off_tag="eleva_v4.1.6", def_tag="def_v1.0.2", merge_tag="eleva_h2h_v1.0.1", 
-                 snap_tag="snap_v1.1.1", snap_range = 2500.0, snap_closure=300.0, min_dwell=10):
+                 snap_tag=None, snap_range = 2500.0, snap_closure=300.0, min_dwell=10, offense_dwell=50):
         self.experts = {"offense": load_policy(off_tag),
                         "defense": load_policy(def_tag),
                         "merge": load_policy(merge_tag)
@@ -31,6 +31,7 @@ class Selector:
         if snap_tag is not None:
             self.experts["snap"] = load_policy(snap_tag)
         self.snap_range, self.snap_closure = snap_range, snap_closure
+        self.offense_dwell=offense_dwell
         self.min_dwell = min_dwell  #decide every 1s
         self.reset()
 
@@ -50,9 +51,10 @@ class Selector:
     
     def _pick(self, obs):      
         choice = self.quadrant(obs)
+        need = self.offense_dwell if self.mode == "offense" else self.min_dwell
         if self.mode is None:      #first decision
             self.mode = choice
-        elif choice != self.mode and (choice == "defense" or self.held >= self.min_dwell):
+        elif choice != self.mode and (choice == "defense" or self.held >= need):
             self.mode = choice
             self.held = 0
             self.switches += 1
