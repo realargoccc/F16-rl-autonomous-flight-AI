@@ -178,6 +178,8 @@ class F16Env(gym.Env):
         self.dive_deg = 8.0         #same as above 
         self.bearing_spread = 40.0
         self.rel_alt_band = None
+        self.speed_band = None
+        self.foe_speed_band = None
         self.defensive_p = 0.0
 
         #reward weights - knobs
@@ -262,7 +264,7 @@ class F16Env(gym.Env):
         super().reset(seed=seed)
         #agent data
         self.me['ic/h-sl-ft'] = self.np_random.integers(18000, 25000) #randomize the starting position of the aircraft
-        self.me['ic/vc-kts'] = 450.0 #self.np_random.integers(350,400)  #knots
+        self.me['ic/vc-kts'] = 450.0 if self.speed_band is None else float(self.np_random.uniform(*self.speed_band)) #knots
         self.me['ic/throttle-cmd-norm'] = 0.5
         self.me['ic/elevator-cmd-norm'] = 0.0
         self.me["gear/gear-cmd-norm"] = 0.0
@@ -333,7 +335,7 @@ class F16Env(gym.Env):
         self.foe['ic/lat-gc-deg'] = lat0 + foe_north / 111320.0
         self.foe['ic/long-gc-deg'] = lon0 + foe_east / (111320.0 * np.cos(np.radians(lat0)))
         self.foe['ic/h-sl-ft'] = (self.me['position/h-sl-meters'] + foe_rel_alt) / 0.3048 #agent's perspective 
-        self.foe['ic/vc-kts'] = 450.0
+        self.foe['ic/vc-kts'] = 450.0 if self.foe_speed_band is None else float(self.np_random.uniform(*self.foe_speed_band))
         self.foe['ic/throttle-cmd-norm'] = 0.5
         self.foe['propulsion/tank[0]/contents-lbs'] = 1500.0
         self.foe['propulsion/tank[1]/contents-lbs'] = 1500.0
