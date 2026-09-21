@@ -52,12 +52,12 @@ def main():
         pitch = float(r["pitch_rad"])
         yaw = float(r["heading_deg"])
         T = f"{fnum(a_lon)}|{fnum(a_lat)}|{fnum(a_alt)}|{fnum(roll)}|{fnum(pitch)}|{fnum(yaw)}" 
+        extra = f",Mach={float(r['mach']):.2f},AOA={float(r['aoa_deg']):.1f}" if "mach" in r else ""
 
         if i == 0:
-            output.append(f"{agent_ID},T={T},Name=F-16C, "
-                          f"Color=Blue,Callsign=Sheppherd,Pilot=V2.1.9")
+            output.append(f"{agent_ID},T={T}{extra},Name=F-16C,Color=Blue,Pilot=selector")
         else:
-            output.append(f"{agent_ID},T={T}")
+            output.append(f"{agent_ID},T={T}{extra}")
 
         #agent status
         f_lon, f_lat = local_to_lonlat(float(r["foe_n_m"]), float(r["foe_e_m"]))
@@ -66,12 +66,12 @@ def main():
                  f"{fnum(float(r['foe_roll_deg']))}|"
                  f"{fnum(float(r['foe_pitch_deg']))}|"
                  f"{fnum(float(r['foe_yaw_deg']))}")
+        extra_foe = f",Mach={float(r['foe_mach']):.2f},AOA={float(r['foe_aoa_deg']):.1f}" if "foe_mach" in r else ""
 
         if i == 0:
-            output.append(f"{foe_ID},T={T_foe}, Name=F-16C, "
-                          f"Color=Red,Callsign=Ghost")
+            output.append(f"{foe_ID},T={T_foe}{extra_foe},Name=F-16C,Color=Red")
         else:
-            output.append(f"{foe_ID},T={T_foe}")
+            output.append(f"{foe_ID},T={T_foe}{extra_foe}")
 
     with open(acmi_path, "w", newline="\n", encoding="utf-8") as f:
         f.write("\n".join(output) + "\n")

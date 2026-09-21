@@ -39,6 +39,10 @@ def fight(env, agent, sel, seed):
             "foe_pitch_deg": env.foe['attitude/theta-deg'],
             "foe_yaw_deg": env.foe['attitude/psi-deg'],
             "mode": flown,                               #shows key essential for tacview to generate
+            "mach": env.me['velocities/mach'],
+            "aoa_deg": env.me['aero/alpha-deg'],
+            "foe_mach": env.foe['velocities/mach'],
+            "foe_aoa_deg": env.foe['aero/alpha-deg'],
         })
     if info["win"]:                                   end = "kill"
     elif env.agent_hp <= 0.0:                         end = "shot down"
@@ -50,27 +54,27 @@ def fight(env, agent, sel, seed):
     return {"seed": seed, "end": end, "win": end == "kill", "dealt": 1.0 - float(env.foe_hp),
             "length": len(rows), "rows": rows}
 
-def sweep(agent_kind, opponent):    #agent vs opponent on all 60 seeds
+def sweep(dwell, opponent):    #agent vs opponent on all 60 seeds
     env = make_env(opponent)
-    sel = Selector()
-    agent = sel if agent_kind == "hand" else LearnedSelector(TAG, sel)
-    return [fight(env, agent, sel, s) for s in SEEDS]
+    sel = Selector(offense_dwell=dwell)
+    return [fight(env, sel, sel, s) for s in SEEDS]
 
 def summarize(episodes):    #print all 60 seeds in one column
     frames = [r["mode"] for epi in episodes for r in epi["rows"]]
     s = {end: sum(epi["end"] == end for epi in episodes) for end in ENDS}
     for m in Selector.MODES:
-        s[m] = 100.0 * frames.count(m) / len(frames)
+        s[m] = round(100.0 * frames.count(m) / len(frames), 1)
+    s["dealt"] = round(float(np.mean([epi["dealt"] for epi in episodes])), 3)
     return s
 
 if __name__ == "__main__":
     for opponent in ("bandit", "v4.1.6"):
         print("old    vs", opponent, summarize(sweep(10, opponent)))
-        commit = sweep("learned", opponent)
+        commit = sweep(50, opponent)
         print("commit vs", opponent, summarize(commit))
         best = max(commit, key=lambda e: (e["win"], e["end"] not in ("shot down", "own over-g", "own deck"),
                                            e["dealt"], -e["length"]))   #priority: kill, damage, shorter
-        path = "select_best_commit" + opponent.replace(".", "") + ".csv"
+        path = "select_best_commit_" + opponent.replace(".", "") + ".csv"
 
         with open(path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=best["rows"][0].keys())
