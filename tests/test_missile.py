@@ -1,13 +1,12 @@
 import unittest
 
-from missile import (
+from testlaunch import (
     BASELINE_SHORT_RANGE_AAM,
     Hardpoint,
     MissileLoadout,
     StoreRole,
     StoreState,
 )
-
 
 class MissileStoreTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -36,7 +35,6 @@ class MissileStoreTests(unittest.TestCase):
         self.assertIs(released_spec, BASELINE_SHORT_RANGE_AAM)
         self.assertEqual(mounted.state, StoreState.RELEASED)
         self.assertIsNone(loadout.get("left_wingtip"))
-
 
 if __name__ == "__main__":
     unittest.main()

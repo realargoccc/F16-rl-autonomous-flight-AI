@@ -10,11 +10,25 @@ from gymnasium.spaces import Box, MultiDiscrete
 from stable_baselines3 import PPO
 from reward_functions import Posture, Aim, Gun, Deck, Terminal, StepComp
 from controller import LowLevel
+from testlaunch import (F16_WINGTIP_shotm_HARDPOINTS, launchLoadout, shot9_STYLE_SHORT_RANGE_shotm)
 
 THRO_BINS, SURF_BINS = 30, 41
 THRO_LO, THRO_HI = 0.4, 0.95
 SIM_STEPS_PER_ACTION = 12   #120hz
 ROOT = os.path.join(os.path.dirname(__file__), "jsbsim-data")
+
+#two hardpoints of aim9
+def body_to_world(offset_body, roll_rad, pitch_rad, yaw_rad):
+    """body offset (x fwd, y right, z down) -> world north/east/up metres"""
+    x, y, z = offset_body
+    cr, sr = math.cos(roll_rad), math.sin(roll_rad)
+    cp, sp = math.cos(pitch_rad), math.sin(pitch_rad)
+    cy, sy = math.cos(yaw_rad), math.sin(yaw_rad)
+    north = x * cp * cy + y * (sr * sp * cy - cr * sy) + z * (cr * sp * cy + sr * sy)
+    east = x * cp * sy + y * (sr * sp * sy + cr * cy) + z * (cr * sp * sy - sr * cy)
+    down = -x * sp + y * sr * cp + z * cr * cp
+    return np.array([north, east, -down])
+
 
 def decode_bins(action):
         '''bins -> continuous commands ctrl_input expects'''
@@ -166,6 +180,10 @@ class F16Env(gym.Env):
         self.hard_deck = 2500.0 #meters
         self.k_damage = 60.0
         self.range_width = 900.0
+        self.captive_wingtip_stores = False          #True mounts store_stations at reset
+        self.store_stations = ("left_wingtip", "right_wingtip")      
+        self.store_spec = shot9_STYLE_SHORT_RANGE_shotm
+        self.loadout = None
 
         #spawn randomization
         self.mirror_obs = np.array([6, 7, 11, 12, 14, 19, 24, 26])
@@ -279,6 +297,11 @@ class F16Env(gym.Env):
         #bandit data
 
         self.curr_step = 0
+        self.loadout = None
+        if self.captive_wingtip_stores:                       #fresh stores each episode
+            self.loadout = launchLoadout(F16_WINGTIP_shotm_HARDPOINTS)
+            for station_id in self.store_stations:
+                self.loadout.load(station_id, self.store_spec).arm()
 
         #set fight location for both
         lat0 = self.me['position/lat-geod-deg']
