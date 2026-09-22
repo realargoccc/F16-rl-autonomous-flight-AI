@@ -43,7 +43,7 @@ class RangeEnv(F16Env):
 
         self.turn_offset = self.foe["attitude/psi-rad"] - bearing
         self.pitch_target = 0.0
-        self.nominal_speed = 250.0
+        self.nominal_speed = 200.0
 
     def _store_info(self):
         """Serializable store data for range_eval and future ACMI output."""
