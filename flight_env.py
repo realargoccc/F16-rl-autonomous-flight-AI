@@ -381,7 +381,25 @@ class F16Env(gym.Env):
 
         info = {}
         return obs, info
-        
+
+    def store_states(self):
+        ''' world position and attitude of every mounted store'''
+        if self.loadout is None:
+            return {}
+        roll = self.me['attitude/phi-rad']
+        pitch = self.me['attitude/theta-rad']
+        yaw = self.me['attitude/psi-rad']
+        states = {}
+        for station in self.loadout.hardpoints:
+            mounted = self.loadout.get(station.station_id)
+            if mounted is None:
+                continue
+            states[station.station_id] = {
+                "pos": self.me.pos() + body_to_world(station.body_position_m, roll, pitch, yaw),
+                "att": (math.degrees(roll), math.degrees(pitch), math.degrees(yaw)),
+                "spec":mounted.spec
+            }
+
     def _get_obs(self, me, foe, own_hp, foe_hp):
         foe_pos = foe.pos()
         foe_vel = foe.vel()
