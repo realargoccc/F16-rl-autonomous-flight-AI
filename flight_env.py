@@ -399,7 +399,8 @@ class F16Env(gym.Env):
                 "att": (math.degrees(roll), math.degrees(pitch), math.degrees(yaw)),
                 "spec":mounted.spec
             }
-
+        return states
+    
     def _get_obs(self, me, foe, own_hp, foe_hp):
         foe_pos = foe.pos()
         foe_vel = foe.vel()
