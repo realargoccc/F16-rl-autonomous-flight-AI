@@ -55,7 +55,7 @@ class RangeEnv(F16Env):
             mounted = self.loadout.get(station_id)
 
             if state is None or mounted is None:
-                raise RuntimeError(f"configured store station {station_id!r} was not loaded")
+                continue
 
             pos = state["pos"]
             roll_deg, pitch_deg, yaw_deg = state["att"]

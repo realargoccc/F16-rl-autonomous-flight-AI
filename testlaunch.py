@@ -10,7 +10,6 @@ import numpy as np
 G0 = 9.80665
 Vec3 = np.ndarray
 
-
 def _vec3(value: Vec3 | tuple[float, float, float]) -> Vec3:
     """Return an independent float vector and reject non-3D input."""
     result = np.asarray(value, dtype=float)
@@ -35,6 +34,14 @@ def _unit(vector: Vec3, fallback: Vec3 | None = None) -> Vec3:
 def _angle_between(left: Vec3, right: Vec3) -> float:
     return acos(float(np.clip(np.dot(_unit(left), _unit(right)), -1.0, 1.0)))
 
+def _segment_miss(relative_start: Vec3, relative_end: Vec3) -> float:
+    """Closest distance to the origin along a straight relative-motion segment."""
+    delta = relative_end - relative_start
+    span = float(np.dot(delta, delta))
+    if span < 1e-12:
+        return _norm(relative_end)
+    fraction = float(np.clip(-np.dot(relative_start, delta) / span, 0.0, 1.0))
+    return _norm(relative_start + fraction * delta)
 
 def _turn_toward(current: Vec3, desired: Vec3, max_angle_rad: float) -> Vec3:
     """Turn a unit vector by no more than max_angle_rad in one time step."""
@@ -342,7 +349,7 @@ class launchFlight:
         initial_position = (
             _vec3(launch.carrier_position_neu_m) + forward * (spec.length_m / 2.0)
         )
-        initial_velocity = _vec3(launch.carrier_velocity_neu_m) + forward * 12.0
+        initial_velocity = _vec3(launch.carrier_velocity_neu_mps) + forward * 12.0
 
         return cls(
             spec=spec,
@@ -407,15 +414,26 @@ class launchFlight:
 
         self._update_seeker(target)
 
+        start_position_neu_m = self.position_neu_m.copy()
         speed_mps = max(_norm(self.velocity_neu_mps), 1.0)
-        forward = _unit(self.velocity_neu_mps)
+        velocity_direction = _unit(self.velocity_neu_mps)
+        gravity_neu_mps2 = np.array([0.0, 0.0, -G0])
 
+        lateral_neu_mps2 = np.zeros(3)
         if self.seeker_locked:
-            desired = self._guidance_direction(target)
-            max_turn_angle = (
-                self.spec.max_lateral_load_g * G0 / speed_mps * dt_s
-            )
-            forward = _turn_toward(forward, desired, max_turn_angle)
+            desired_velocity = self._guidance_direction(target) * speed_mps
+            required = (desired_velocity - self.velocity_neu_mps) / dt_s - gravity_neu_mps2
+            lateral_neu_mps2 = required - np.dot(required, velocity_direction) * velocity_direction
+            lateral_limit = self.spec.max_lateral_load_g * G0
+            lateral_mag = _norm(lateral_neu_mps2)
+            if lateral_mag > lateral_limit:
+                lateral_neu_mps2 *= lateral_limit / lateral_mag
+
+        thrust_n = 0.0
+        if self.remaining_propellant_kg > 0.0:
+            burned_kg = min(self.remaining_propellant_kg, self.spec.propellant_flow_kgps * dt_s,)
+            self.remaining_propellant_kg -= burned_kg
+            thrust_n = self.spec.motor_thrust_newton
 
         thrust_n = 0.0
         if self.remaining_propellant_kg > 0.0:
@@ -437,9 +455,9 @@ class launchFlight:
 
         velocity_direction = _unit(self.velocity_neu_mps)
         acceleration_neu_mps2 = (
-            forward * (thrust_n / self.mass_kg)
-            - velocity_direction * (drag_n / self.mass_kg)
-            + np.array([0.0, 0.0, -G0])
+            velocity_direction * ((thrust_n - drag_n) / self.mass_kg)
+            + lateral_neu_mps2
+            + gravity_neu_mps2
         )
 
         self.velocity_neu_mps = self.velocity_neu_mps + acceleration_neu_mps2 * dt_s
@@ -455,7 +473,12 @@ class launchFlight:
             return
 
         if target.alive:
-            miss_distance_m = _norm(target.position_neu_m - self.position_neu_m)
+            # closest approach during the interval, not just at its end point
+            relative_end = target.position_neu_m - self.position_neu_m
+            relative_start = relative_end - (
+                target.velocity_neu_mps * dt_s - (self.position_neu_m - start_position_neu_m)
+            )
+            miss_distance_m = _segment_miss(relative_start, relative_end)
             if miss_distance_m <= self.spec.proximity_fuse_radius_m:
                 self.state = FlightState.DETONATED
                 self.event = f"proximity fuse at {miss_distance_m:.1f} m"
