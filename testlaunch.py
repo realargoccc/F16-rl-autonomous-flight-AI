@@ -525,18 +525,18 @@ shot9_STYLE_SHORT_RANGE_shotm = launchSpec(
 )
 
 
-# against Tacview once carried-store export exists.
+# structural frame (x aft, z up) -> body frame (x fwd, y right, z down)
 F16_WINGTIP_shotm_HARDPOINTS = (
     Hardpoint(
         station_id="left_wingtip",
         max_store_mass_kg=100.0,
         compatible_roles=(StoreRole.AIR_TO_AIR,),
-        body_position_m=(1.82, -4.80, 0.13),
+        body_position_m=(-1.82, -4.80, -0.13),
     ),
     Hardpoint(
         station_id="right_wingtip",
         max_store_mass_kg=100.0,
         compatible_roles=(StoreRole.AIR_TO_AIR,),
-        body_position_m=(1.82, 4.80, 0.13),
+        body_position_m=(-1.82, 4.80, -0.13),
     ),
 )

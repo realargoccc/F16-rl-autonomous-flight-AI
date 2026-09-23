@@ -4,6 +4,7 @@ import sys
 
 #python csvtotacview.py                                      # offence command terminal
 #python csvtotacview.py def_best.csv f16_def_v1.0.2.acmi     # defence command terminal
+#python csvtotacview.py range_best.csv f16_range_store.acmi  # practice range, stores on the wingtips
 
 csv_path = sys.argv[1] if len(sys.argv) > 1 else "eval_best.csv"
 acmi_path = sys.argv[2] if len(sys.argv) > 2 else "f16_intercept_v4.1.6.acmi"
@@ -16,6 +17,9 @@ reference_time = "2026-07-12T12:00:00Z" # fight time in UTC
 
 agent_ID = "A0"
 foe_ID = "C0"
+store_IDs = {"left_wingtip": "A1", "right_wingtip": "A2"}   #carried stores, children of the agent
+store_name = "AIM-9M"          #Tacview picks the 3D model by name
+store_type = "Weapon+Missile"
 
 m_per_deg_lat = 111320.0
 
@@ -27,11 +31,19 @@ def local_to_lonlat(north_m, east_m):
 def fnum(x):
     return f"{x:.7f}".rstrip("0").rstrip(".")   #compact digits for cosmetics
 
+def store_T(r, station):
+    '''T=lon|lat|alt|roll|pitch|yaw of the store on this station'''
+    lon, lat = local_to_lonlat(float(r[f"{station}_north_m"]), float(r[f"{station}_east_m"]))
+    values = (lon, lat, float(r[f"{station}_up_m"]), float(r[f"{station}_roll_deg"]),
+              float(r[f"{station}_pitch_deg"]), float(r[f"{station}_yaw_deg"]))
+    return "|".join(fnum(v) for v in values)
+
 def main():
     with open(csv_path, newline="") as f:
         rows = list(csv.DictReader(f))
-    
+
     t_0 = float(rows[0]["time"])
+    on_rail = set()     #stations whose store is drawn right now
 
     output = [
         "FileType=text/acmi/tacview",
@@ -51,7 +63,7 @@ def main():
         roll = math.degrees(float(r["bank_rad"]))
         pitch = float(r["pitch_rad"])
         yaw = float(r["heading_deg"])
-        T = f"{fnum(a_lon)}|{fnum(a_lat)}|{fnum(a_alt)}|{fnum(roll)}|{fnum(pitch)}|{fnum(yaw)}" 
+        T = f"{fnum(a_lon)}|{fnum(a_lat)}|{fnum(a_alt)}|{fnum(roll)}|{fnum(pitch)}|{fnum(yaw)}"
         extra = f",Mach={float(r['mach']):.2f},AOA={float(r['aoa_deg']):.1f}" if "mach" in r else ""
 
         if i == 0:
@@ -73,6 +85,16 @@ def main():
         else:
             output.append(f"{foe_ID},T={T_foe}{extra_foe}")
 
+        #carried stores: drawn on their station until they leave it
+        for station, store_ID in store_IDs.items():
+            if int(r.get(f"{station}_mounted") or 0):
+                head = "" if station in on_rail else f",Name={store_name},Type={store_type},Color=Blue,Parent={agent_ID}"
+                output.append(f"{store_ID},T={store_T(r, station)}{head}")
+                on_rail.add(station)
+            elif station in on_rail:
+                output.append(f"-{store_ID}")      #off the rail: remove the carried object
+                on_rail.discard(station)
+
     with open(acmi_path, "w", newline="\n", encoding="utf-8") as f:
         f.write("\n".join(output) + "\n")
     duration = float(rows[-1]["time"]) - t_0
@@ -81,4 +103,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
