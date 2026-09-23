@@ -37,3 +37,19 @@ def fly(seed=SEED):
             "foe_aoa_deg": env.foe['aero/alpha-deg'],
         }
         on_rail = {s["station_id"]: s for s in info["stores"]}
+        for station_id in env.store_stations:        #same columns every row; an empty station writes mounted=0
+            store = on_rail.get(station_id)
+            row[f"{station_id}_mounted"] = int(store is not None)
+            for key in STORE_KEYS:
+                row[f"{station_id}_{key}"] = store[key] if store is not None else ""
+        rows.append(row)
+    return rows
+
+if __name__ == "__main__":
+    rows = fly()
+    with open(OUT, "w", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    on = [k[:-len("_mounted")] for k in rows[-1] if k.endswith("_mounted") and rows[-1][k]]
+    print(f"wrote {OUT}  seed {SEED}  {len(rows)} frames, {rows[-1]['time']:.1f}s, on the rails at the end: {on}")
